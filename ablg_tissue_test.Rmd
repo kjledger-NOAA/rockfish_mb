@@ -1,0 +1,126 @@
+---
+title: "rockfish mb - testing abl tissues"
+author: "Kimberly Ledger"
+date: "2024-08-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-libraries}
+library(tidyverse)
+```
+
+load taxonomic assignment of asv's
+```{r}
+tax <- read.csv("~/rockfish_mb/data/taxonomy_custom519.csv") %>%
+  select(!X) %>%
+  rename(ASV = qseqid)
+```
+
+no deacon sequence database so going to manually add those ASVs. need to resolve this. 
+```{r}
+deacon <- data.frame(ASV = c("ASV16", "ASV29", "ASV37", "ASV38", "ASV52", "ASV53"), taxon = c("Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus"))
+
+tax <- tax %>%
+  bind_rows(deacon) %>%
+  filter(taxon != "Sebastes mystinus") %>%
+  filter(taxon != "Sebastes carnatus")      ## remove these from taxon assingment to see if we can get a true id on the asv
+```
+
+
+load asv table
+```{r}
+asv_table <- read.csv("/genetics/edna/workdir/sebastes/20240813/trimmed/filtered/outputs/ASVtable.csv")
+```
+
+convert asv table to taxon table
+```{r}
+taxon_table <- asv_table %>%
+  pivot_longer(cols = c(2:88), names_to = "ASV", values_to = "reads") %>%
+  left_join(tax, by="ASV") %>%
+  group_by(X, taxon) %>%
+  summarize(tot_reads = sum(reads)) %>%
+  filter(tot_reads > 0) %>%
+  rename(sample_id = X)
+```
+
+read in file that has the tissue ids for the rockfish samples 
+```{r}
+ablg <- read.csv("~/rockfish_mb/data/ABLG_rockfishDNA.csv")
+```
+
+```{r}
+rockfish <- taxon_table %>%
+  left_join(ablg, by = "sample_id") %>%
+  group_by(sample_id) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  mutate(correct_id = if_else(taxon == species_name, "yes", "no")) %>%
+  mutate(correct_id = replace_na(correct_id, "no"))  
+```
+
+make a plot 
+```{r}
+rockfish %>%
+  #filter(species_name != "Sebastes diaconus") %>%  # remove deacons because tax id was off from sequence not being in ncbi db
+  ggplot(aes(x=sample_id, y=prop_reads, fill=correct_id)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~common_name, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(axis.text.x = element_blank(),
+    #axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+```{r}
+rockfish %>%
+  #filter(species_name != "Sebastes diaconus") %>%  # remove deacons because tax id was off from sequence not being in ncbi db
+  ggplot(aes(x=sample_id, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~species_name, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(axis.text.x = element_blank(),
+    #axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+perhaps some of the taxonomic assignment issues are from using the ncbi database - let me try assignments using a custom db 
+
+add species name to asv_table to help with troubleshooting
+```{r}
+asv_table_w_id <- asv_table %>%
+  rename(sample_id = X) %>%
+  left_join(ablg) %>%
+  select(sample_id, species_name, common_name, everything())
+```
+
+```{r}
+asv_table_w_id %>%
+  filter(species_name %in% c("Sebastes ciliatus","Sebastes variabilis"))
+```
+
+asvs that seem to be Sebastes ciliatus or Sebastes variabilis: 2, 10, 12, 13
+
+
+```{r}
+temp <- ablg %>%
+  filter(str_detect(common_name, "dusky"))
+```
+
