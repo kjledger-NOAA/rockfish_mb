@@ -1,5 +1,5 @@
 ---
-title: "rockfish mb - testing abl tissues"
+title: "rockfish mb - testing abl and burke museum tissues"
 author: "Kimberly Ledger"
 date: "2024-08-14"
 output: html_document
@@ -15,31 +15,34 @@ library(tidyverse)
 
 load taxonomic assignment of asv's
 ```{r}
-tax <- read.csv("~/rockfish_mb/data/taxonomy_custom519.csv") %>%
+tax <- read.csv("~/rockfish_mb/data/taxonomy_custom519_20241106.csv") %>%
   select(!X) %>%
   rename(ASV = qseqid)
 ```
 
 no deacon sequence database so going to manually add those ASVs. need to resolve this. 
 ```{r}
-deacon <- data.frame(ASV = c("ASV16", "ASV29", "ASV37", "ASV38", "ASV52", "ASV53"), taxon = c("Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus"))
+#deacon <- data.frame(ASV = c("ASV16", "ASV29", "ASV37", "ASV38", "ASV52", "ASV53"), taxon = c("Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus"))
 
-tax <- tax %>%
-  bind_rows(deacon) %>%
-  filter(taxon != "Sebastes mystinus") %>%
-  filter(taxon != "Sebastes carnatus")      ## remove these from taxon assingment to see if we can get a true id on the asv
+#tax <- tax %>%
+#  bind_rows(deacon) %>%
+#  filter(taxon != "Sebastes mystinus") %>%
+#  filter(taxon != "Sebastes carnatus")      ## remove these from taxon assingment to see if we can get a true id on the asv
 ```
 
 
 load asv table
 ```{r}
-asv_table <- read.csv("/genetics/edna/workdir/sebastes/20240813/trimmed/filtered/outputs/ASVtable.csv")
+asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/trimmed/filtered/outputs/ASVtable.csv")
 ```
 
 convert asv table to taxon table
 ```{r}
+last <- ncol(asv_table)
+first <- which(startsWith(names(asv_table), "ASV"))[1]
+
 taxon_table <- asv_table %>%
-  pivot_longer(cols = c(2:88), names_to = "ASV", values_to = "reads") %>%
+  pivot_longer(cols = c(first:last), names_to = "ASV", values_to = "reads") %>%
   left_join(tax, by="ASV") %>%
   group_by(X, taxon) %>%
   summarize(tot_reads = sum(reads)) %>%
@@ -47,29 +50,43 @@ taxon_table <- asv_table %>%
   rename(sample_id = X)
 ```
 
+sequencing read numbers were pretty low per sample, but will still apply a small threshold here to remove very low read number samples 
+```{r}
+reads_per_sample <- taxon_table %>%
+  group_by(sample_id) %>%
+  mutate(reads_per_sample = sum(tot_reads))
+
+keepers <- reads_per_sample %>%
+  filter(reads_per_sample > 100)
+
+taxon_table_filtered <- taxon_table %>%
+  filter(sample_id %in% keepers$sample_id)
+```
+
+
 read in file that has the tissue ids for the rockfish samples 
 ```{r}
-ablg <- read.csv("~/rockfish_mb/data/ABLG_rockfishDNA.csv")
+ablg <- read.csv("~/rockfish_mb/data/ABLG_BURKE_rockfishDNA.csv")
 ```
 
 ```{r}
-rockfish <- taxon_table %>%
+rockfish <- taxon_table_filtered %>%
   left_join(ablg, by = "sample_id") %>%
   group_by(sample_id) %>%
   mutate(reads_per_sample = sum(tot_reads)) %>%
   mutate(prop_reads = tot_reads/reads_per_sample) %>%
   mutate(correct_id = if_else(taxon == species_name, "yes", "no")) %>%
-  mutate(correct_id = replace_na(correct_id, "no"))  
+  mutate(correct_id = replace_na(correct_id, "no")) %>%
+  mutate(species_name_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", species_name))
 ```
 
 make a plot 
 ```{r}
-rockfish %>%
-  #filter(species_name != "Sebastes diaconus") %>%  # remove deacons because tax id was off from sequence not being in ncbi db
+p1 <- rockfish %>%
   ggplot(aes(x=sample_id, y=prop_reads, fill=correct_id)) +
   geom_bar(stat = "identity") + 
   theme_bw() +
-  facet_wrap(~common_name, scales = "free_x", nrow = 3) + 
+  facet_wrap(~species_name_abbr, scales = "free_x", nrow = 3) + 
   labs(
     y = "relative read abundance (%)",
     x = "sample_id") + 
@@ -80,15 +97,17 @@ rockfish %>%
     legend.position = "bottom",
     legend.title = element_blank()
   )
+
+p1 
 ```
 
 ```{r}
-rockfish %>%
+p2 <- rockfish %>%
   #filter(species_name != "Sebastes diaconus") %>%  # remove deacons because tax id was off from sequence not being in ncbi db
   ggplot(aes(x=sample_id, y=prop_reads, fill=taxon)) +
   geom_bar(stat = "identity") + 
   theme_bw() +
-  facet_wrap(~species_name, scales = "free_x", nrow = 3) + 
+  facet_wrap(~species_name_abbr, scales = "free_x", nrow = 3) + 
   labs(
     y = "relative read abundance (%)",
     x = "sample_id") + 
@@ -99,9 +118,15 @@ rockfish %>%
     legend.position = "bottom",
     legend.title = element_blank()
   )
+
+p2 
 ```
 
-perhaps some of the taxonomic assignment issues are from using the ncbi database - let me try assignments using a custom db 
+```{r}
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_binary.png", plot = p1, dpi = 300, width = 12, height = 6)
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_colors.png", plot = p2, dpi = 300, width = 12, height = 6)
+```
+
 
 add species name to asv_table to help with troubleshooting
 ```{r}
@@ -112,15 +137,13 @@ asv_table_w_id <- asv_table %>%
 ```
 
 ```{r}
-asv_table_w_id %>%
-  filter(species_name %in% c("Sebastes ciliatus","Sebastes variabilis"))
+#asv_table_w_id %>%
+#  filter(species_name %in% c("Sebastes diploproa"))
 ```
 
-asvs that seem to be Sebastes ciliatus or Sebastes variabilis: 2, 10, 12, 13
+notes: 
+* S. diaconus, S. altivelis, and S. microchar do not have reference sequences in the current version of the custom rockfish reference db so that helps explain this mis-ids for those species. 
+* I already knew that S. ciliatus and S. variablilis were not going to be possible to separate 
+* S. diploproa tissues did not match any of the S. diploproa reference sequences... there were not a large number of reads for these tissues
 
-
-```{r}
-temp <- ablg %>%
-  filter(str_detect(common_name, "dusky"))
-```
 

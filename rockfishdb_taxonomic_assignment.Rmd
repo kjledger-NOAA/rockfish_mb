@@ -1,7 +1,7 @@
 ---
-title: "oncorhynchus_gadid_customdbs"
+title: "using custom rockfish database to assign ASVs to taxa"
 author: "Kimberly Ledger"
-date: "2024-07-08"
+date: "2024-11-06"
 output: html_document
 ---
 
@@ -12,7 +12,7 @@ rename <- dplyr::rename
 
 input blastn results from custom rockfish database
 ```{r}
-rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_custom519.txt")  %>%
+rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_custom519_20241106.txt")  %>%
   filter(V4 > 100) %>% # make sure all retained matches are >100 bp
   select(-V5, -V6, -V7, -V8, -V9, -V10, -V11, -V12, -V13, -V14) %>%  #remove unnecessary columns
   group_by(V1, V2) %>% # group by the sequence key and the full taxonomy to reduce duplicate entries
@@ -53,12 +53,14 @@ seq_id_diff <- rock_id %>%
 seq_id_diff
 ```
 
-since there are very few basepair difference among species, let's go with species within 0.5% of the top match and top match must be at least 99% 
+since there are very few bp difference among species, let's go with species within 0.5% of the top match and top match must be at least 99% 
 ```{r}
 keepers <- seq_id_diff %>%
-  filter(diff < 0.5) #%>%
+  filter(diff < 0.5) #%>%   the 0.5% threshold essentially is requiring a 100% match 
   #filter(top_perc > 99)
 ```
+
+** need to come back and decide how i feel about 98-99% top matches... possibly missing reference data? is this causing false positives? 
 
 
 ## so now determine whether ASVs should be assigned to genus, family, order, etc. 
@@ -88,18 +90,19 @@ single_genus <- keepers %>%
   #unique
 ```
 
-so as I have the Oncorhynchus genus designation right now, it can be any pacific salmon (or O. mykiss) except for Chinook. 
-
 remove underscore from taxon name 
 ```{r}
 rockfish_df <- singleton_df %>%
   bind_rows(single_genus)
 ```
 
+change non-species level ASV assignment so that it represents the species it makes up. 
+- Sebastes_ev = Sebastes emphaeus or Sebastes variegatus
+- Sebastes_pv  = 	Sebastes polyspinis or Sebastes variabilis
 ```{r}
  rockfish_df_2 <- rockfish_df %>%
-   mutate(taxon = ifelse(qseqid == "ASV81", "Sebates_pv", taxon)) #,
-#          taxon = ifelse(qseqid == "ASV25", "Sebates_pv", taxon),
+   mutate(taxon = ifelse(qseqid == "ASV24", "Sebates_ev", taxon),
+          taxon = ifelse(qseqid == "ASV192", "Sebates_pv", taxon)) # ,
 #          taxon = ifelse(qseqid == "ASV39", "Sebates_pv", taxon),
 #          taxon = ifelse(qseqid == "ASV43", "Sebates_pv", taxon),
 #          taxon = ifelse(qseqid == "ASV5", "Sebates_az", taxon),
@@ -115,30 +118,5 @@ rockfish_df_3 <- rockfish_df_2  %>%
 ```
 
 ```{r}
-write.csv(rockfish_df_3, "/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom519.csv")
+write.csv(rockfish_df_3, "/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom519_20241106.csv")
 ```
-
-
-
-
-
-
-
-
-maybe 
-```{r}
-
-#oncorhynchus_df$taxon <- gsub("_", " ", oncorhynchus_df$taxon)
-#oncorhynchus_df$species <- gsub("_", " ", oncorhynchus_df$species)
-#oncorhynchus_df$genus <- "Oncorhynchus"
-#oncorhynchus_df$family <- "Salmonidae"
-#oncorhynchus_df$order <- "Salmoniformes"
-#oncorhynchus_df$class <- "Actinopteri"
-#oncorhynchus_df$phylum <- "Chordata"
-#oncorhynchus_df$kingdom <- "Eukaryota"
-
-#export 
-#write.csv(oncorhynchus_df, "../outputs/20240806/oncorhynchus_asv_id.csv")
-```
-
-

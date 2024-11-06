@@ -1,9 +1,12 @@
 ---
 title: "Taxonomic Assignment"
 author: "Kimberly Ledger"
-date: "2024-08-14"
+date: "2024-11-06"
 output: html_document
 ---
+
+WARNING!!!! not using this in updated version (Nov 2024) of data analysis 
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -17,7 +20,6 @@ rename <- dplyr::rename
 ```
 
 ## load output from taxonkit 
-- this is the fasta seqs from the 20240703 run on dadasnake (i.e. duplicate sbs2022 libraries separated), and blastn using a ncbi nt database accessed on 2024-07-18 with 98% seq identity and 98% query coverage   
 ```{r load-output-from-taxonkit}
 taxonomy <-read.delim("/home/kimberly.ledger/rockfish_mb/data/blastn_taxlineage_98.txt", header = FALSE, na.strings=c(""," ","NA"))
 

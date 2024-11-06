@@ -1,7 +1,7 @@
 ---
-title: "filtering sequences for first rockfish primer test"
+title: "filtering sequences for rockfish primer test"
 author: "Kimberly Ledger"
-date: "2024-08-14"
+date: "2024-11-06"
 output: html_document
 ---
 
@@ -28,7 +28,7 @@ when running this code here are the only things that need to be customized
 
 name file path and check correct files are there - UPDATE FILE PATH DEPENDING ON DATASET - this should point to the trimmed folder
 ```{r}
-path <- "/genetics/edna/workdir/sebastes/20240813/trimmed/"
+path <- "/genetics/edna/workdir/sebastes/tissues/trimmed/"
 head(list.files(path))
 ```
 
@@ -69,7 +69,6 @@ names(filtRs) <- sample.names
 
 **edit this code for trimming**
 Use standard filtering parameters: maxN=0 (DADA2 requires no Ns), truncQ=2, rm.phix=TRUE and maxEE=2.
-
 ```{r}
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, #truncLen=c(100,100),
               maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
@@ -136,21 +135,11 @@ Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 ```
 
-
 Remove sequences that are much longer or shorter than expected - UPDATE THE VALUES HERE BASED ON PRIMERSET
 ```{r}
-#seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 221] #gadidS1
-#seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 162] #gadidS2
-#seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 204] #gadidS3
-#seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 129] #gadidS4 and S5
-#seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 205] #gaididS6
-
 #seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% c(151:154)] #salmon
 #seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% c(153:184)] #mideca (amplicon size according to original publication)
 #seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% c(162:182)] #mifish
-
-#checking reads of sizes for gadidS1 
-#seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 225]
 ```
 
 Remove chimeras
@@ -170,7 +159,6 @@ rownames(track) <- sample.names
 head(track)
 ```
 
-
 export dada2 filtering summary 
 ```{r}
 out_path <- file.path(path, "filtered", "outputs")
@@ -178,15 +166,11 @@ out_path <- file.path(path, "filtered", "outputs")
 write.csv(track, file = file.path(out_path, "track.csv"))
 ```
 
-
-
 ## export for taxonomic identification
 we will want to use the "seqtab.nochim" ASV table for taxonomic analyses
-
 ```{r}
 write.csv(seqtab.nochim, file.path(out_path, "seqtab.csv"))
 ```
-
 
 ## also export the seqtab as a Fasta
 ```{r}
@@ -196,8 +180,6 @@ id <- paste0("ASV", 1:length(sq))
 library(seqinr)
 write.fasta(sequences = as.list(sq), names=id, file.out = file.path(out_path, "myasvs.fasta"))
 ```
-
-
 
 ## and export the seqtab table with the numbered ASVs headers that correspond to those output in the FASTA file.
 ```{r}
@@ -210,14 +192,4 @@ colnames(st.brief) <- names(briefToSeq)
 
 # export the seq table with brief names:
 write.csv(st.brief, file= file.path(out_path, "ASVtable.csv"))
-```
-
-
-## create table of ASV labels and ASV sequences
-```{r}
-asv <- colnames(seqtab.nochim)
-asv_id <- paste0("ASV", 1:length(asv))
-asv_table <- data.frame(asv, asv_id)
-
-write.csv(asv_table, file = file.path(out_path, "asv_id_table.csv"))
 ```
