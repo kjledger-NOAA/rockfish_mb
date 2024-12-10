@@ -5,6 +5,8 @@ date: "2024-11-06"
 output: html_document
 ---
 
+note: added additional tissue sequences on 12.4.2024 and reran
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -28,7 +30,7 @@ when running this code here are the only things that need to be customized
 
 name file path and check correct files are there - UPDATE FILE PATH DEPENDING ON DATASET - this should point to the trimmed folder
 ```{r}
-path <- "/genetics/edna/workdir/sebastes/tissues/trimmed/"
+path <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204//"
 head(list.files(path))
 ```
 

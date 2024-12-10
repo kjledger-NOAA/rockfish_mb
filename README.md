@@ -15,10 +15,13 @@ step 3: use DADA2 to filter and merge sequencing reads
 - make folder for filtered reads (mkdir ../filtered)
 - run sequence_filtering.Rmd 
 
-step 4: use blastn of custom rockfish db (v.519) for taxonomic assignment 
-blastn -query /genetics/edna/workdir/sebastes/tissues/trimmed/filtered/outputs/myasvs.fasta -db /home/kimberly.ledger/rockfish_mb/custom_db/rockfish_db_519 -out blastn_custom519_20241106.txt -perc_identity 96 -qcov_hsp_perc 98 -num_threads 10 -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames staxids'
+step 4: use blastn of custom rockfish db (v.534) for taxonomic assignment (updated after 12/2/2024 miseq run) 
 
-** still need to make final adjustments to custom reference db - there are missing species 
+(base) [kimberly.ledger@akc0ss-vu-134 data]$ blastn -query /genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta -db /home/kimberly.ledger/rockfish_mb/custom_db/rockfish_db_534 -out blastn_custom534_20241209.txt -perc_identity 96 -qcov_hsp_perc 98 -num_threads 10 -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames staxids'
+
+note: if the custom rockfish db needs to be updated.
+- export fasta and metadata csv (Name and Organism) from Geneious folder of rockfish
+-example: makeblastdb -in rockfish_reference_db_529.fasta -dbtype nucl -out rockfish_db_529
 
 step 5: use "rockfishdb_taxonomic_assignment.Rmd" to figure out ASV assignments 
 

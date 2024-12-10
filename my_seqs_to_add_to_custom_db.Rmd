@@ -1,0 +1,313 @@
+---
+title: "add custom ref seqs"
+output: html_document
+date: "2024-12-05"
+---
+
+this code takes the asvs from the rockfish mb tissues and creates ref sequences for the few species we are missing/low of reference sequences 
+
+```{r}
+library(tidyverse)
+```
+
+load asv table
+```{r}
+asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/trimmed_20241204//filtered/outputs/ASVtable.csv") %>%
+  dplyr::rename(sample_id = X)
+```
+
+read in file that has the tissue ids for the rockfish samples 
+```{r}
+ablg <- read.csv("~/rockfish_mb/data/ABLG_BURKE_rockfishDNA.csv")
+```
+
+join
+```{r}
+asv_table <- asv_table %>%
+  left_join(ablg, by = "sample_id") %>%
+  select(sample_id, common_name, species_name, everything())
+```
+
+
+#DEACON
+
+pull out species that need seqs to be added to the ref db 
+```{r}
+deacon <- asv_table %>%
+  filter(common_name == "deacon") %>%
+  select(where(~ !is.numeric(.) || (is.numeric(.) && sum(.) > 0)))
+```
+
+interesting.. lots of different asvs... next: look at them in geneious. maybe they are actually very similar? 
+
+are these asvs in deacon unique to deacon or also in other rockfish? 
+```{r}
+deacon_asvs <- deacon %>%
+  select(starts_with("ASV")) %>%
+  colnames()
+```
+
+```{r}
+temp1 <- asv_table %>%
+  select(2, all_of(deacon_asvs)) %>%
+  group_by(common_name) %>%
+  summarise(across(ASV9:ASV262, sum, na.rm = TRUE)) %>%
+  t() %>%
+  as.data.frame()
+
+colnames(temp1) <- temp1[1,]  
+temp1 <- temp1[-1,-45]  
+
+temp2 <- temp1 %>%
+  mutate(across(everything(), as.numeric)) %>%
+  mutate(total = rowSums(across(where(is.numeric)))) %>%
+  mutate(prop_deacon = deacon/total)
+```
+
+```{r}
+deacon_filtered <- temp2 %>%
+  filter(prop_deacon > 0.9) %>%
+  filter(total > 100) %>%
+  rownames()
+```
+
+subset fasta to be just the deacons
+```{r}
+# Load the necessary libraries
+library(Biostrings)
+
+# Define the input and output file paths
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb//outputs/deacon.fasta"
+
+# Read the FASTA file
+fasta_seqs <- readDNAStringSet(fasta_file)
+
+# Filter the FASTA sequences based on the ASV headers
+deacon_seqs <- fasta_seqs[names(fasta_seqs) %in% deacon_filtered]
+
+# Write the filtered sequences to a new FASTA file
+writeXStringSet(deacon_seqs, filepath = output_file)
+```
+
+look closer at the ciliatus and variabilis asvs 
+
+# DUSKIES
+
+```{r}
+cv <- asv_table %>%
+  filter(common_name == "dark dusky" | common_name == "light dusky") %>%
+  select(where(~ !is.numeric(.) || (is.numeric(.) && sum(.) > 0)))
+```
+
+are these asvs unique by species? 
+```{r}
+cv_asvs <- cv %>%
+  select(starts_with("ASV")) %>%
+  colnames()
+```
+
+```{r}
+temp1 <- asv_table %>%
+  select(2, all_of(cv_asvs)) %>%
+  group_by(common_name) %>%
+  summarise(across(ASV47:ASV244, sum, na.rm = TRUE)) %>%
+  t() %>%
+  as.data.frame()
+
+colnames(temp1) <- temp1[1,]  
+temp1 <- temp1[-1,-45]  
+
+temp2 <- temp1 %>%
+  mutate(across(everything(), as.numeric)) %>%
+  mutate(total = rowSums(across(where(is.numeric)))) %>%
+  mutate(prop_light = `light dusky`/total) %>%
+  mutate(prop_dark = `dark dusky`/total)
+```
+
+yep, the common asvs for both light and dark duskys overlap. can't differentiate with these primers. 
+
+#SUNSET
+
+pull out species that need seqs to be added to the ref db 
+```{r}
+sunset <- asv_table %>%
+  filter(common_name == "sunset") %>%
+  select(where(~ !is.numeric(.) || (is.numeric(.) && sum(.) > 0)))
+```
+
+are these asvs in deacon unique to deacon or also in other rockfish? 
+```{r}
+sunset_asvs <- sunset %>%
+  select(starts_with("ASV")) %>%
+  colnames()
+```
+
+```{r}
+temp1 <- asv_table %>%
+  select(2, all_of(sunset_asvs)) %>%
+  group_by(common_name) %>%
+  summarise(across(ASV75:ASV236, sum, na.rm = TRUE)) %>%
+  t() %>%
+  as.data.frame()
+
+colnames(temp1) <- temp1[1,]  
+temp1 <- temp1[-1,-45]  
+
+temp2 <- temp1 %>%
+  mutate(across(everything(), as.numeric)) %>%
+  mutate(total = rowSums(across(where(is.numeric)))) %>%
+  mutate(prop_sunset = sunset/total)
+```
+
+```{r}
+sunset_filtered <- temp2 %>%
+  filter(prop_sunset > 0.9) %>%
+  filter(total > 100) %>%
+  rownames()
+```
+
+subset fasta to be just the sunsets
+```{r}
+# Load the necessary libraries
+library(Biostrings)
+
+# Define the input and output file paths
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/sunset.fasta"
+
+# Read the FASTA file
+fasta_seqs <- readDNAStringSet(fasta_file)
+
+# Filter the FASTA sequences based on the ASV headers
+sunset_seqs <- fasta_seqs[names(fasta_seqs) %in% sunset_filtered]
+
+# Write the filtered sequences to a new FASTA file
+writeXStringSet(sunset_seqs, filepath = output_file)
+```
+
+
+#OLIVE
+
+pull out species that need seqs to be added to the ref db 
+```{r}
+olive <- asv_table %>%
+  filter(common_name == "olive") %>%
+  select(where(~ !is.numeric(.) || (is.numeric(.) && sum(.) > 0)))
+```
+
+are these asvs in deacon unique to deacon or also in other rockfish? 
+```{r}
+olive_asvs <- olive %>%
+  select(starts_with("ASV")) %>%
+  colnames()
+```
+
+```{r}
+temp1 <- asv_table %>%
+  select(2, all_of(olive_asvs)) %>%
+  group_by(common_name) %>%
+  summarise(across(ASV77:ASV212, sum, na.rm = TRUE)) %>%
+  t() %>%
+  as.data.frame()
+
+colnames(temp1) <- temp1[1,]  
+temp1 <- temp1[-1,-45]  
+
+temp2 <- temp1 %>%
+  mutate(across(everything(), as.numeric)) %>%
+  mutate(total = rowSums(across(where(is.numeric)))) %>%
+  mutate(prop_olive = olive/total)
+```
+
+
+```{r}
+olive_filtered <- temp2 %>%
+  filter(prop_olive > 0.9) %>%
+  filter(total > 100) %>%
+  rownames()
+```
+
+subset fasta to be just the olives
+```{r}
+# Load the necessary libraries
+library(Biostrings)
+
+# Define the input and output file paths
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/olive.fasta"
+
+# Read the FASTA file
+fasta_seqs <- readDNAStringSet(fasta_file)
+
+# Filter the FASTA sequences based on the ASV headers
+olive_seqs <- fasta_seqs[names(fasta_seqs) %in% olive_filtered]
+
+# Write the filtered sequences to a new FASTA file
+writeXStringSet(olive_seqs, filepath = output_file)
+```
+
+
+ABLG11655 - doesn't look like it's actually an olive rf
+
+
+#gopher
+
+pull out species that need seqs to be added to the ref db 
+```{r}
+gopher <- asv_table %>%
+  filter(common_name == "gopher") %>%
+  select(where(~ !is.numeric(.) || (is.numeric(.) && sum(.) > 0)))
+```
+
+are these asvs in deacon unique to deacon or also in other rockfish? 
+```{r}
+gopher_asvs <- gopher %>%
+  select(starts_with("ASV")) %>%
+  colnames()
+```
+
+```{r}
+temp1 <- asv_table %>%
+  select(2, all_of(gopher_asvs)) %>%
+  group_by(common_name) %>%
+  summarise(across(ASV81:ASV237, sum, na.rm = TRUE)) %>%
+  t() %>%
+  as.data.frame()
+
+colnames(temp1) <- temp1[1,]  
+temp1 <- temp1[-1,-45]  
+
+temp2 <- temp1 %>%
+  mutate(across(everything(), as.numeric)) %>%
+  mutate(total = rowSums(across(where(is.numeric)))) %>%
+  mutate(prop_gopher = gopher/total)
+```
+
+
+```{r}
+gopher_filtered <- temp2 %>%
+  filter(prop_gopher > 0.9) %>%
+  filter(total > 100) %>%
+  rownames()
+```
+
+subset fasta to be just the gophers
+```{r}
+# Load the necessary libraries
+library(Biostrings)
+
+# Define the input and output file paths
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/gopher.fasta"
+
+# Read the FASTA file
+fasta_seqs <- readDNAStringSet(fasta_file)
+
+# Filter the FASTA sequences based on the ASV headers
+gopher_seqs <- fasta_seqs[names(fasta_seqs) %in% gopher_filtered]
+
+# Write the filtered sequences to a new FASTA file
+writeXStringSet(gopher_seqs, filepath = output_file)
+```
+

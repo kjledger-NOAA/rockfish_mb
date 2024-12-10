@@ -12,7 +12,7 @@ rename <- dplyr::rename
 
 input blastn results from custom rockfish database
 ```{r}
-rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_custom519_20241106.txt")  %>%
+rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_custom534_20241209.txt")  %>%
   filter(V4 > 100) %>% # make sure all retained matches are >100 bp
   select(-V5, -V6, -V7, -V8, -V9, -V10, -V11, -V12, -V13, -V14) %>%  #remove unnecessary columns
   group_by(V1, V2) %>% # group by the sequence key and the full taxonomy to reduce duplicate entries
@@ -23,7 +23,7 @@ rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_custom519_2024
 
 load the id's of accessions
 ```{r}
-id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_reference_db_519.csv") %>%
+id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_reference_db_534.csv") %>%
   rename(accession_id = Name)
 ```
 
@@ -100,9 +100,13 @@ change non-species level ASV assignment so that it represents the species it mak
 - Sebastes_ev = Sebastes emphaeus or Sebastes variegatus
 - Sebastes_pv  = 	Sebastes polyspinis or Sebastes variabilis
 ```{r}
- rockfish_df_2 <- rockfish_df %>%
-   mutate(taxon = ifelse(qseqid == "ASV24", "Sebates_ev", taxon),
-          taxon = ifelse(qseqid == "ASV192", "Sebates_pv", taxon)) # ,
+rockfish_df_2 <- rockfish_df %>%
+   mutate(taxon = ifelse(taxon == "Sebastes", "Sebates_ev", taxon), ## all Sebastes genus ids are S. emphaeus/ S. variegatus except one
+          taxon = ifelse(qseqid == "ASV75", "Sebates_cm", taxon)) #Sebastes crocotulus/Sebastes miniatus
+
+# rockfish_df_2 <- rockfish_df %>%
+#   mutate(taxon = ifelse(qseqid == "ASV24", "Sebates_ev", taxon),
+#          taxon = ifelse(qseqid == "ASV192", "Sebates_pv", taxon)) # ,
 #          taxon = ifelse(qseqid == "ASV39", "Sebates_pv", taxon),
 #          taxon = ifelse(qseqid == "ASV43", "Sebates_pv", taxon),
 #          taxon = ifelse(qseqid == "ASV5", "Sebates_az", taxon),
@@ -118,5 +122,5 @@ rockfish_df_3 <- rockfish_df_2  %>%
 ```
 
 ```{r}
-write.csv(rockfish_df_3, "/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom519_20241106.csv")
+write.csv(rockfish_df_3, "/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20241209.csv")
 ```

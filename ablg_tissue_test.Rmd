@@ -5,6 +5,9 @@ date: "2024-08-14"
 output: html_document
 ---
 
+NOTE TO SELF - remove ABLGs from test that ended up going into reference DB!
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -15,7 +18,7 @@ library(tidyverse)
 
 load taxonomic assignment of asv's
 ```{r}
-tax <- read.csv("~/rockfish_mb/data/taxonomy_custom519_20241106.csv") %>%
+tax <- read.csv("~/rockfish_mb/data/taxonomy_custom534_20241209.csv") %>%
   select(!X) %>%
   rename(ASV = qseqid)
 ```
@@ -33,7 +36,7 @@ no deacon sequence database so going to manually add those ASVs. need to resolve
 
 load asv table
 ```{r}
-asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/trimmed/filtered/outputs/ASVtable.csv")
+asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/ASVtable.csv")
 ```
 
 convert asv table to taxon table
@@ -80,9 +83,21 @@ rockfish <- taxon_table_filtered %>%
   mutate(species_name_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", species_name))
 ```
 
+remove the ABLG's that were used in the reference db from this validation test
+
+```{r}
+ablg_id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_reference_db_534.csv") %>%
+  rename(accession_id = Name) %>%
+  filter(grepl("ABLG", accession_id))
+```
+
+
 make a plot 
 ```{r}
 p1 <- rockfish %>%
+  filter(species_name != "Sebastolobus altivelis") %>%
+  filter(species_name != "Sebastolobus macrochir") %>%  ## not going to worry about sebastolobus 
+  filter(!sample_id %in% ablg_id$accession_id) %>%
   ggplot(aes(x=sample_id, y=prop_reads, fill=correct_id)) +
   geom_bar(stat = "identity") + 
   theme_bw() +
@@ -103,7 +118,9 @@ p1
 
 ```{r}
 p2 <- rockfish %>%
-  #filter(species_name != "Sebastes diaconus") %>%  # remove deacons because tax id was off from sequence not being in ncbi db
+  filter(species_name != "Sebastolobus altivelis") %>%
+  filter(species_name != "Sebastolobus macrochir") %>%  ## not going to worry about sebastolobus 
+  filter(!sample_id %in% ablg_id$accession_id) %>%
   ggplot(aes(x=sample_id, y=prop_reads, fill=taxon)) +
   geom_bar(stat = "identity") + 
   theme_bw() +
@@ -142,8 +159,13 @@ asv_table_w_id <- asv_table %>%
 ```
 
 notes: 
-* S. diaconus, S. altivelis, and S. microchar do not have reference sequences in the current version of the custom rockfish reference db so that helps explain this mis-ids for those species. 
+* added S. diaconus to reference db and removed S. altivelis, and S. microchar from analysis due to availability of ref sequences
 * I already knew that S. ciliatus and S. variablilis were not going to be possible to separate 
 * S. diploproa tissues did not match any of the S. diploproa reference sequences... there were not a large number of reads for these tissues
 
 
+```{r}
+rockfish %>%
+  filter(is.na(taxon)) %>%
+  filter(prop_reads > 0.75)
+```
