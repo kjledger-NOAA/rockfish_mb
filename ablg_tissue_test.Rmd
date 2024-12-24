@@ -144,6 +144,15 @@ ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_binary.png", plot 
 ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_colors.png", plot = p2, dpi = 300, width = 12, height = 6)
 ```
 
+```{r}
+rockfish <- rockfish %>%
+  filter(species_name != "Sebastolobus altivelis") %>%
+  filter(species_name != "Sebastolobus macrochir") %>%  ## not going to worry about sebastolobus 
+  filter(!sample_id %in% ablg_id$accession_id)
+```
+
+
+
 
 add species name to asv_table to help with troubleshooting
 ```{r}

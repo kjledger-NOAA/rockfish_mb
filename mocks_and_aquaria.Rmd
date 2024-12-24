@@ -1,0 +1,585 @@
+---
+title: "rockfish_mocks"
+output: html_document
+date: "2024-12-20"
+---
+
+using the filtered.seqs.fasta file from the dadasnake output folder called "rkfish_mock_bt22", i ran blastn on the custom rockfish db (v. 534)
+
+blastn -query /home/kimberly.ledger/rockfish_mb/data/dadasnake_output/filtered.seqs.fasta -db /home/kimberly.ledger/rockfish_mb/custom_db/rockfish_db_534 -out blastn_mockandbt_db534.txt -perc_identity 96 -qcov_hsp_perc 98 -num_threads 10 -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sscinames staxids'
+
+then used 'rockfishdb_taxonomic_assignment.Rmd' to assign taxa to ASVs and saved output as "taxonomy_mockandbt.csv" 
+
+libraries
+```{r}
+library(tidyverse)
+rename <- dplyr::rename
+library(reshape2)
+```
+
+load sample metadata
+```{r}
+metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/mock_bt22_metadata.csv") %>%
+  rename(Sample_ID = sample_ID)
+```
+
+load taxonomic assignment of ASVs
+```{r}
+tax <- read.csv("/home/kimberly.ledger/rockfish_mb/data/blastn_output/taxonomy_mockandbt.csv") %>% 
+  select(!X) %>%
+  rename(ASV = qseqid)
+```
+
+load read table output 
+```{r}
+asv_table <- readRDS("/home/kimberly.ledger/rockfish_mb/data/blastn_output/filtered.seqTab.RDS") %>%
+  select(!Row.names)
+
+#transpose 
+asv_table <- data.frame(t(asv_table))
+
+#set column names to be ASV# 
+colnames(asv_table) <- asv_table["ASV",]
+
+#remove row that has ASV#
+asv_table <- asv_table[!rownames(asv_table) %in% c('ASV'), ]
+
+#make sure reads are numbers
+# Convert all character columns to numeric
+for (col in names(asv_table)) {
+  asv_table[[col]] <- as.numeric(asv_table[[col]])
+}
+
+#make make sample ID a column 
+asv_table$Sample_ID <- rownames(asv_table)
+
+asv_table <- asv_table %>%
+  select(Sample_ID, everything()) %>%
+  mutate(across(everything(), ~ gsub("-", "_", .))) %>%
+  mutate(Sample_ID = ifelse(Sample_ID == "NC22_1_A", "NC22-1_A", Sample_ID)) %>%
+  mutate(Sample_ID = ifelse(Sample_ID == "NC22_2_A", "NC22-2_A", Sample_ID))
+```
+
+add column to the ASV table that labels the sample type
+```{r}
+asv_table_with_sample_type <- metadata %>%
+  dplyr::select(Sample_ID, sample_type) %>%
+  left_join(asv_table, by = "Sample_ID")
+
+# make a variable for the first and last ASV column in the table
+asv_first <- which(startsWith(names(asv_table_with_sample_type), "ASV"))[1]
+asv_last <- ncol(asv_table_with_sample_type)
+```
+
+join taxonomic assignments 
+```{r}
+taxon_table <- asv_table_with_sample_type %>%
+  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
+  left_join(tax, by="ASV") %>%
+  group_by(Sample_ID, sample_type, taxon) %>%
+  mutate(reads = as.numeric(reads)) %>%
+  summarize(tot_reads = sum(reads)) %>%
+  filter(tot_reads > 0)
+```
+
+first, let me see what the tissue samples look like 
+```{r}
+taxon_table %>%
+  filter(sample_type == "tissue") %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+need to see what's up with the yelloweye samples (34137 thru 34140)... other control tissues all look good 
+
+let me see what the mock community samples look like 
+```{r}
+taxon_table %>%
+  filter(sample_type == "mock") %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+need to figure out what all these unassigned reads are. 
+
+let me see what the aquarium samples look like 
+```{r}
+taxon_table %>%
+  filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+wes said that rougheye (aleutianus), pop, (alutus), china (nebulosus), copper (caurinus), quillback (maliger), black (melanops), widow (entomelas), light dusky (variabilis), and yellowtail (flavidus) were present at time of sampling 
+
+so eDNA is potentially missing S. nebulosus and varibilis. 
+eDNA picks up a bit if S. ciliatus (could be due to the inability of the amplicon to differentiate duskies...)
+eDNA pick up a lot of melanosticutus (blackspotted) and polyspinis (northern), and some proringer (redstripe). all of these species were pretty solid in their tissue tax id validation so i don't have a strong suspicion these are incorrect tax IDs 
+
+
+and a quick look a field samples 
+
+```{r}
+taxon_table %>%
+  filter(sample_type == "sample") %>%
+  filter(!Sample_ID %in% c("e01737", "e01738", "e01741")) %>% 
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+mostly POP and northern in BT field samples. that makes sense!  
+
+
+```{r}
+taxon_table %>%
+  filter(sample_type %in% c("extraction_blank", "field_blank", "pcr_blank", "positive")) %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  #filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=tot_reads, fill=taxon)) +
+  #ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~sample_type, scales = "free_x") + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+i flipped the label for the NC/PC samples (and they were POP) 
+i used gopher rf for PC22_A 
+
+```{r}
+asv_table_with_sample_type %>%
+  filter(Sample_ID == "PC22_A") %>%
+  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
+  filter(reads > 0)
+```
+
+ASV32 = ~97% Sebastes carnatus HMM....
+
+
+okay, now i want to investigate the NA tax assignments from the mock community samples 
+
+first, i will filter the asv table to keep just the mock samples - and the asvs in them 
+```{r}
+mocks <- asv_table_with_sample_type %>% 
+  filter(sample_type == "mock") %>%
+  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
+  mutate(reads = as.numeric(reads))
+
+asvs_in_mocks <- mocks %>%
+  group_by(ASV) %>%
+  summarize(total_reads = sum(reads)) %>%
+  filter(total_reads > 100)                   ## maybe go to zero later
+```
+
+
+```{r}
+mocks <- mocks %>%
+  filter(ASV %in% asvs_in_mocks$ASV)
+```
+
+plot
+```{r}
+mocks %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x") + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+since it has the fewest species, let me investigate ns_even first 
+
+```{r}
+ns_even <- mocks %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "ns_even") %>%
+  filter(reads > 0) 
+
+ns_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+ns_even <- ns_even %>%
+  left_join(tax, by = "ASV")
+
+ns_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+- S. aleutianus and S. alutus and S. polyspinis and S. zacentrus is probably a bit of tag jumping 
+- maliger and melanops and pinniger and nebulosus, and nigrocinctus pres looks okay (though proportions are quite skewed)
+- ruberrimus is missing (tissue seqs for this were wacky)
+
+load mock community input 
+```{r}
+mock_expected <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_mock.csv")
+```
+
+```{r}
+ mock_expected <- mock_expected %>%
+  group_by(Community_ID) %>%
+  mutate(ng_sum = sum(ng),
+         ng_prop = ng/ng_sum)
+
+ mock_expected %>%
+  ggplot(aes(x=Community_ID, y=ng_prop, fill=species)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )  
+```
+
+now let's check all_even 
+
+```{r}
+all_even <- mocks %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "all_even") %>%
+  filter(reads > 0) 
+
+all_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+all_even <- all_even %>%
+  left_join(tax, by = "ASV")
+
+all_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+all_even_table <- all_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ungroup() %>%
+  select(community, replicate, sample_type, ASV, taxon, prop_reads) %>%
+  pivot_wider(names_from = "replicate", values_from = "prop_reads") %>%
+  arrange(taxon)
+```
+
+now let's check offshore_even 
+
+```{r}
+os_even <- mocks %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "os_even") %>%
+  filter(reads > 0) 
+
+os_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+os_even <- os_even %>%
+  left_join(tax, by = "ASV")
+
+os_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+os_even_table <- os_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ungroup() %>%
+  select(community, replicate, sample_type, ASV, taxon, prop_reads) %>%
+  pivot_wider(names_from = "replicate", values_from = "prop_reads") %>%
+  arrange(taxon)
+```
+
+now let's check offshore_skew 
+
+```{r}
+os_skew <- mocks %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "os_skew") %>%
+  filter(reads > 0) 
+
+os_skew %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+os_skew <- os_skew %>%
+  left_join(tax, by = "ASV")
+
+os_skew %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+os_skew_table <- os_skew %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ungroup() %>%
+  select(community, replicate, sample_type, ASV, taxon, prop_reads) %>%
+  pivot_wider(names_from = "replicate", values_from = "prop_reads") %>%
+  arrange(taxon)
+```
+
+yelloweye 
+
+```{r}
+yelloweye <- asv_table_with_sample_type %>%
+  filter(Sample_ID %in% c("34137", "34138", "34139", "34140")) %>%
+  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>% 
+  filter(reads > 0) %>%
+  left_join(tax, by="ASV") 
+```
+
+i don't understand why these tissue samples have so many asvs and why they are assigning to so many different things... 
+let me start by looking at the dominate asvs in these samples 
+
+```{r}
+yelloweye %>%
+  mutate(reads = as.numeric(reads)) %>%
+  group_by(ASV) %>%
+  summarize(total_reads = sum(reads)) %>%
+  arrange(desc(total_reads))
+```
+
+asv12 = babocki
+asv19 = elongatus
+
+
+
+
+

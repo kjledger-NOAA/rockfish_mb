@@ -1,0 +1,52 @@
+Community_ID,Common_name,species,Well,DNA_Ratio,uL,conc_ng_uL,ng,total_ng,proportion
+all_even,rougheye rockfish,Sebastes aleutianus,A7,1,10,19.7,197,3703,0.053200108
+all_even,pacific ocean perch,Sebastes alutus,B7,1,10,19.9,199,3703,0.053740211
+all_even,redbanded rockfish,Sebastes babcocki,C7,1,10,19.5,195,3703,0.052660005
+all_even,shortraker rockfish,Sebastes borealis,D7,1,10,19.5,195,3703,0.052660005
+all_even,silvergray rockfish,Sebastes brevispinis,E7,1,10,20.9,209,3703,0.056440724
+all_even,dark dusky rockfish,Sebastes ciliatus,F7,1,10,19.2,192,3703,0.051849851
+all_even,rosethorn rockfish,Sebastes helvomaculatus,G7,1,10,19.9,199,3703,0.053740211
+all_even,quillback rockfish,Sebastes maliger,H7,1,10,20.2,202,3703,0.054550365
+all_even,black rockfish,Sebastes melanops,A8,1,10,19,190,3703,0.051309749
+all_even,blackspotted rockfish,Sebastes melanostictus,B8,1,10,18.4,184,3703,0.049689441
+all_even,china rockfish,Sebastes nebulosus,C8,1,10,18.2,182,3703,0.049149338
+all_even,tiger rockfish,Sebastes nigrocinctus,D8,1,10,19.3,193,3703,0.052119903
+all_even,canary rockfish,Sebastes pinniger,E8,1,10,20.9,209,3703,0.056440724
+all_even,northern rockfish,Sebastes polyspinis,F8,1,10,18,180,3703,0.048609236
+all_even,redstripe rockfish,Sebastes proriger,G8,1,10,19.1,191,3703,0.0515798
+all_even,yelloweye rockfish,Sebastes ruberrimus,H8,1,10,21.6,216,3703,0.058331083
+all_even,light dusky rockfish,Sebastes variabilis,A9,1,10,19.7,197,3703,0.053200108
+all_even,harlequin rockfish,Sebastes variegatus,B9,1,10,19.4,194,3703,0.052389954
+all_even,sharpchin rockfish,Sebastes zacentrus,C9,1,10,17.9,179,3703,0.048339184
+nearshore_even,quillback rockfish,Sebastes maliger,H7,1,10,20.2,202,1192,0.169463087
+nearshore_even,black rockfish,Sebastes melanops,A8,1,10,19,190,1192,0.159395973
+nearshore_even,china rockfish,Sebastes nebulosus,C8,1,10,18.2,182,1192,0.152684564
+nearshore_even,tiger rockfish,Sebastes nigrocinctus,D8,1,10,19.3,193,1192,0.161912752
+nearshore_even,canary rockfish,Sebastes pinniger,E8,1,10,20.9,209,1192,0.17533557
+nearshore_even,yelloweye rockfish,Sebastes ruberrimus,H8,1,10,21.6,216,1192,0.181208054
+offshore_even,rougheye rockfish,Sebastes aleutianus,A7,1,10,19.7,197,2511,0.078454799
+offshore_even,pacific ocean perch,Sebastes alutus,B7,1,10,19.9,199,2511,0.079251294
+offshore_even,redbanded rockfish,Sebastes babcocki,C7,1,10,19.5,195,2511,0.077658303
+offshore_even,shortraker rockfish,Sebastes borealis,D7,1,10,19.5,195,2511,0.077658303
+offshore_even,silvergray rockfish,Sebastes brevispinis,E7,1,10,20.9,209,2511,0.083233771
+offshore_even,dark dusky rockfish,Sebastes ciliatus,F7,1,10,19.2,192,2511,0.07646356
+offshore_even,rosethorn rockfish,Sebastes helvomaculatus,G7,1,10,19.9,199,2511,0.079251294
+offshore_even,blackspotted rockfish,Sebastes melanostictus,B8,1,10,18.4,184,2511,0.073277579
+offshore_even,northern rockfish,Sebastes polyspinis,F8,1,10,18,180,2511,0.071684588
+offshore_even,redstripe rockfish,Sebastes proriger,G8,1,10,19.1,191,2511,0.076065313
+offshore_even,light dusky rockfish,Sebastes variabilis,A9,1,10,19.7,197,2511,0.078454799
+offshore_even,harlequin rockfish,Sebastes variegatus,B9,1,10,19.4,194,2511,0.077260056
+offshore_even,sharpchin rockfish,Sebastes zacentrus,C9,1,10,17.9,179,2511,0.07128634
+offshore_skew,rougheye rockfish,Sebastes aleutianus,A7,3,30,19.7,591,5352,0.110426009
+offshore_skew,pacific ocean perch,Sebastes alutus,B7,5,50,19.9,995,5352,0.185911809
+offshore_skew,redbanded rockfish,Sebastes babcocki,C7,1,10,19.5,195,5352,0.036434978
+offshore_skew,shortraker rockfish,Sebastes borealis,D7,3,20,19.5,390,5352,0.072869955
+offshore_skew,silvergray rockfish,Sebastes brevispinis,E7,1,10,20.9,209,5352,0.039050822
+offshore_skew,dark dusky rockfish,Sebastes ciliatus,F7,1,10,19.2,192,5352,0.035874439
+offshore_skew,rosethorn rockfish,Sebastes helvomaculatus,G7,1,10,19.9,199,5352,0.037182362
+offshore_skew,blackspotted rockfish,Sebastes melanostictus,B8,5,50,18.4,920,5352,0.171898356
+offshore_skew,northern rockfish,Sebastes polyspinis,F8,5,50,18,900,5352,0.168161435
+offshore_skew,redstripe rockfish,Sebastes proriger,G8,1,10,19.1,191,5352,0.035687593
+offshore_skew,light dusky rockfish,Sebastes variabilis,A9,1,10,19.7,197,5352,0.03680867
+offshore_skew,harlequin rockfish,Sebastes variegatus,B9,1,10,19.4,194,5352,0.036248132
+offshore_skew,sharpchin rockfish,Sebastes zacentrus,C9,1,10,17.9,179,5352,0.033445441
