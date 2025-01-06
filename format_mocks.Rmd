@@ -1,0 +1,193 @@
+---
+title: "formatting mock com data"
+output: html_document
+date: "2024-12-27"
+---
+
+load libraries 
+```{r, message=FALSE}
+library(tidyverse)
+library(dplyr)
+rename <- dplyr::rename
+```
+
+first, i'm going to compare the mock community asvs from the filtered.seqTab output and the decontaminated output (just out of curiosity)
+
+load sample metadata
+```{r}
+metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/mock_bt22_metadata.csv") %>%
+  rename(Sample_ID = sample_ID)
+```
+
+load read table output 
+```{r}
+asv_table <- readRDS("/home/kimberly.ledger/rockfish_mb/data/blastn_output/filtered.seqTab.RDS") %>%
+  select(!Row.names)
+
+#transpose 
+asv_table <- data.frame(t(asv_table))
+
+#set column names to be ASV# 
+colnames(asv_table) <- asv_table["ASV",]
+
+#remove row that has ASV#
+asv_table <- asv_table[!rownames(asv_table) %in% c('ASV'), ]
+
+#make sure reads are numbers
+# Convert all character columns to numeric
+for (col in names(asv_table)) {
+  asv_table[[col]] <- as.numeric(asv_table[[col]])
+}
+
+#make make sample ID a column 
+asv_table$Sample_ID <- rownames(asv_table)
+
+asv_table <- asv_table %>%
+  select(Sample_ID, everything()) %>%
+  mutate(across(everything(), ~ gsub("-", "_", .))) %>%
+  mutate(Sample_ID = ifelse(Sample_ID == "NC22_1_A", "NC22-1_A", Sample_ID)) %>%
+  mutate(Sample_ID = ifelse(Sample_ID == "NC22_2_A", "NC22-2_A", Sample_ID))
+```
+
+add column to the ASV table that labels the sample type
+```{r}
+asv_table_with_sample_type <- metadata %>%
+  dplyr::select(Sample_ID, sample_type) %>%
+  left_join(asv_table, by = "Sample_ID")
+
+# make a variable for the first and last ASV column in the table
+asv_first <- which(startsWith(names(asv_table_with_sample_type), "ASV"))[1]
+asv_last <- ncol(asv_table_with_sample_type)
+
+mock_table_original <- asv_table_with_sample_type %>%
+  filter(sample_type == "mock") %>%
+  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
+  filter(reads > 0)
+```
+
+
+load decontaminated reads 
+```{r}
+decontaminated_table <- read.csv("/home/kimberly.ledger/rockfish_mb/data/decontamination/decontaminated_asv_table.csv") %>%
+  select(!X) %>%
+  filter(sample_type == "mock") %>%
+  select(!sample_type) %>%
+  filter(reads > 0)
+```
+
+anti-join tables 
+```{r}
+comparison <- mock_table_original %>%
+  full_join(decontaminated_table, by = c("Sample_ID", "ASV"))
+```
+
+going to use the decontaminated table - only asv1 and asv2 are different 
+
+load mock community input 
+```{r}
+mock_expected <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_mock.csv") %>%
+  mutate(replicate = "expected") %>%
+  group_by(Community_ID) %>%
+  mutate(start_conc_ng = uL * conc_ng_uL,
+         community_total_conc = sum(start_conc_ng),
+         Perc_Community = start_conc_ng/community_total_conc)
+```
+
+
+assign asv's to taxons 
+```{r}
+taxonomy <- tax <- read.csv("/home/kimberly.ledger/rockfish_mb/data/blastn_output/taxonomy_mockandbt.csv") %>% 
+  select(!X) %>%
+  select(qseqid, taxon) %>%
+  unique() %>%
+  rename(ASV = qseqid) 
+
+mock_taxons <- decontaminated_table %>%
+  left_join(taxonomy, by = "ASV") 
+```
+
+
+take a closer look at what asv's make up the taxons
+```{r}
+mock_taxons %>%
+  group_by(taxon) %>%
+  mutate(taxon_reads = sum(reads)) %>%
+  group_by(ASV, taxon, taxon_reads) %>%
+  summarize(tot_reads = sum(reads)) %>%
+  mutate(prop_asv = tot_reads/taxon_reads) %>%
+  ggplot(aes(x=taxon, y=prop_asv, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  #facet_grid(~Community_ID, scales = 'free') +
+  theme_bw() +
+  labs(
+    y = "proportion of sequencing reads",
+    x = "taxon",
+    title = "") + 
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "right",
+    legend.title = element_blank()
+  )
+```
+
+all Sebastes ev reads in mocks are S. variegatus 
+
+
+reformat and join the mock reads with expected mock values 
+```{r}
+mock_table <- mock_taxons %>%
+  mutate(taxon = ifelse(taxon == "Sebates_ev", "Sebastes variegatus", taxon)) %>%
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  group_by(Sample_ID, community, replicate, taxon) %>%
+  summarize(reads = sum(reads)) %>%
+  ungroup() %>%
+  group_by(Sample_ID, community, replicate) %>%
+  mutate(community_reads = sum(reads)) %>%
+  mutate(Perc_Community = reads/community_reads)
+```
+
+
+export the mock community data in the format needed for quantitative metabarcoding models
+```{r}
+mock_start <- mock_expected %>%
+  select(Community_ID, species, start_conc_ng) %>%
+  rename(community = Community_ID) %>%
+  rename(taxon = species)
+
+mock_export <- mock_table %>%
+  mutate(community = ifelse(community == "ns_even", "nearshore_even", community),
+         community = ifelse(community == "os_even", "offshore_even", community),
+         community = ifelse(community == "os_skew", "offshore_skew", community)) %>%
+  select(community, replicate, taxon, reads) %>%
+  rename(tech_rep = replicate) %>%
+  rename(nReads = reads) %>%
+  mutate(Cycles = 35) %>%
+  left_join(mock_start) %>%
+  mutate(start_conc_ng = ifelse(is.na(start_conc_ng), 0, start_conc_ng))
+
+write.csv(mock_export, "/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20241227.csv", row.names = F)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

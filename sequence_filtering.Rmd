@@ -5,14 +5,14 @@ date: "2024-11-06"
 output: html_document
 ---
 
-note: added additional tissue sequences on 12.4.2024 and reran
+note: added additional tissue sequences on 12.4.2024 and 12.31.2024 reran without removing the primer sequences from reads 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-DADA2 processing of trimmed reads (i.e. primer sequences already removed)
+DADA2 processing of UNtrimmed reads (used cutadapt with --no-trim flag)
 
 ## access Rstudio on the VM 
 * access the Rstudio server here: http://161.55.97.134:8787/
@@ -30,7 +30,7 @@ when running this code here are the only things that need to be customized
 
 name file path and check correct files are there - UPDATE FILE PATH DEPENDING ON DATASET - this should point to the trimmed folder
 ```{r}
-path <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204//"
+path <- "/genetics/edna/workdir/sebastes/tissues/untrimmed_20241231/"
 head(list.files(path))
 ```
 

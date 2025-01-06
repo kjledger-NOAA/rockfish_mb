@@ -18,24 +18,22 @@ library(tidyverse)
 
 load taxonomic assignment of asv's
 ```{r}
-tax <- read.csv("~/rockfish_mb/data/taxonomy_custom534_20241209.csv") %>%
+## untrimmed
+tax <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom536_20250103.csv") %>%
+  select(!X) %>%
+  rename(ASV = qseqid)
+## trimmed 
+tax <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom536_20250103_trimmed.csv") %>%
   select(!X) %>%
   rename(ASV = qseqid)
 ```
 
-no deacon sequence database so going to manually add those ASVs. need to resolve this. 
-```{r}
-#deacon <- data.frame(ASV = c("ASV16", "ASV29", "ASV37", "ASV38", "ASV52", "ASV53"), taxon = c("Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus", "Sebastes diaconus"))
-
-#tax <- tax %>%
-#  bind_rows(deacon) %>%
-#  filter(taxon != "Sebastes mystinus") %>%
-#  filter(taxon != "Sebastes carnatus")      ## remove these from taxon assingment to see if we can get a true id on the asv
-```
-
-
 load asv table
 ```{r}
+## untrimmed 
+asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/untrimmed_20241231/filtered/outputs/ASVtable.csv")
+
+## trimmed
 asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/ASVtable.csv")
 ```
 
@@ -53,6 +51,17 @@ taxon_table <- asv_table %>%
   rename(sample_id = X)
 ```
 
+```{r}
+asv_table %>%
+  pivot_longer(cols = c(first:last), names_to = "ASV", values_to = "reads") %>%
+  left_join(tax, by="ASV")%>%
+  filter(X %in% c("43643", "43665", "43666")) %>%
+  filter(reads > 0)
+```
+
+
+
+
 sequencing read numbers were pretty low per sample, but will still apply a small threshold here to remove very low read number samples 
 ```{r}
 reads_per_sample <- taxon_table %>%
@@ -63,14 +72,32 @@ keepers <- reads_per_sample %>%
   filter(reads_per_sample > 100)
 
 taxon_table_filtered <- taxon_table %>%
-  filter(sample_id %in% keepers$sample_id)
+  filter(sample_id %in% keepers$sample_id) %>%
+  filter(!sample_id %in% c("34137", "34138", "34139", "34140")) ##, "43649"))
 ```
 
 
 read in file that has the tissue ids for the rockfish samples 
 ```{r}
-ablg <- read.csv("~/rockfish_mb/data/ABLG_BURKE_rockfishDNA.csv")
+ablg <- read.csv("~/rockfish_mb/data/ABLG_BURKE_rockfishDNA.csv") %>%
+  filter(common_name != "yelloweye") %>%  ## need to pick new tissue samples to retest at some point
+  filter(sample_id != "ABLG11655") #%>% ## misID of tissue
+  #filter(sample_id != "43649") ## remove one remaining diploproa (splitnose)
 ```
+
+how many species tested? 
+```{r}
+ablg %>% select(common_name) %>% unique()
+```
+```{r}
+ablg %>% group_by(common_name) %>%
+  summarize(count =n ()) %>%
+  summarize(min_count = min(count),
+            mean_count = mean(count),
+            max_count = max(count))
+```
+
+
 
 ```{r}
 rockfish <- taxon_table_filtered %>%
@@ -84,13 +111,25 @@ rockfish <- taxon_table_filtered %>%
 ```
 
 remove the ABLG's that were used in the reference db from this validation test
-
 ```{r}
-ablg_id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_reference_db_534.csv") %>%
+ablg_id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_reference_db_536.csv") %>%
   rename(accession_id = Name) %>%
   filter(grepl("ABLG", accession_id))
 ```
 
+need to change the correct ID column to account for the genus pair IDs that aren't wrong, they just don't get to species-level
+
+```{r}
+rockfish <- rockfish %>%
+  mutate(correct_id = ifelse(taxon == "Sebastes rc" & species_name == "Sebastes crameri" | species_name == "Sebastes reedi", "yes", correct_id),
+         correct_id = ifelse(taxon == "Sebastes cv" & species_name == "Sebastes ciliatus" | species_name == "Sebastes variabilis", "yes", correct_id),
+         correct_id = ifelse(taxon == "Sebastes vw" & species_name == "Sebastes variegatus" | species_name == "Sebastes wilsoni", "yes", correct_id),
+         correct_id = ifelse(taxon == "Sebastes ev" & species_name == "Sebastes emphaeus" | species_name == "Sebastes variegatus", "yes", correct_id),
+         correct_id = ifelse(taxon == "Sebastes em" & species_name == "Sebastes entomelas" | species_name == "Sebastes mystinus", "yes", correct_id),
+         correct_id = ifelse(taxon == "Sebastes cp" & species_name == "Sebastes ciliatus" | species_name == "Sebastes polyspinis", "yes", correct_id),
+         correct_id = ifelse(taxon == "Sebastes de" & species_name == "Sebastes diaconus" | species_name == "Sebastes entomelas", "yes", correct_id),
+         correct_id = ifelse(taxon == "Sebastes cr" & species_name == "Sebastes chlorostictus" | species_name == "Sebastes rosenblatti", "yes", correct_id))
+```
 
 make a plot 
 ```{r}
@@ -151,9 +190,6 @@ rockfish <- rockfish %>%
   filter(!sample_id %in% ablg_id$accession_id)
 ```
 
-
-
-
 add species name to asv_table to help with troubleshooting
 ```{r}
 asv_table_w_id <- asv_table %>%
@@ -171,7 +207,6 @@ notes:
 * added S. diaconus to reference db and removed S. altivelis, and S. microchar from analysis due to availability of ref sequences
 * I already knew that S. ciliatus and S. variablilis were not going to be possible to separate 
 * S. diploproa tissues did not match any of the S. diploproa reference sequences... there were not a large number of reads for these tissues
-
 
 ```{r}
 rockfish %>%

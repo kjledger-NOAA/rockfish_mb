@@ -150,6 +150,22 @@ taxon_table %>%
     legend.position = "bottom",
     legend.title = element_blank()
   )
+
+tank_table <- taxon_table %>%
+  filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample)
+
+tank_table_wASV <- asv_table_with_sample_type %>%
+  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
+  mutate(reads = as.numeric(reads)) %>%
+  left_join(tax, by="ASV") %>%
+  filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+  filter(reads > 0) %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample)
 ```
 
 wes said that rougheye (aleutianus), pop, (alutus), china (nebulosus), copper (caurinus), quillback (maliger), black (melanops), widow (entomelas), light dusky (variabilis), and yellowtail (flavidus) were present at time of sampling 

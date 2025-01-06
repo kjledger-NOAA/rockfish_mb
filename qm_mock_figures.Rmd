@@ -1,0 +1,303 @@
+---
+title: "quantitative metabarcoding figures for rockfish mock communities"
+author: "Kimberly Ledger"
+date: "2024-12-27"
+output: html_document
+---
+
+load libraries
+```{r}
+library(tidyverse)
+library(data.table)
+library(gridExtra)
+library(ggsci)
+```
+
+# Read in the posteriors for mock communities
+```{r}
+load("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/raw_20241227_nearshoreeven.Rdata")
+raw <- Output
+
+load("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mock_20241227_nearshoreeven.Rdata")
+mock1 <- Output
+```
+
+
+```{r}
+#########################################################
+# Raw estimates from Reads
+#########################################################
+# summarize raw estimates from reads for each species.
+raw.raw <- raw$env %>% 
+  group_by(community,Cycles,tech_rep) %>%
+  mutate(sum.ng = sum(start_conc_ng),
+         true.prop = start_conc_ng / sum.ng) %>%
+  ungroup() %>%
+  group_by(Species,community,Cycles,true.prop) %>%
+  group_by(Species,community,Cycles) %>%
+  summarize(simple.Mean=mean(propReads),
+            simple.N = length(tech_rep)) %>%
+  replace_na(list(raw.Mean=0,raw.SD=0,raw.SE=0))
+
+# extract predicted proportions from the posterior
+COM <- data.frame(community = levels(raw$env$community %>% as.factor()))
+COM$comm_idx <- 1:nrow(COM)
+SP  <- raw$env %>% distinct(Species,sp_idx) %>% as.data.frame()
+
+# These are the predicted intercepts for the posteriors
+beta_posterior <- raw$stanMod_summary[["int_samp_small"]][, c(1,4:8)]
+colnames(beta_posterior) <- paste0("raw.",substr(colnames(beta_posterior),1,nchar(colnames(beta_posterior))-1))
+colnames(beta_posterior)[1] <- "raw.mean"
+beta_posterior <- as.data.frame(beta_posterior)
+
+raw.post <-expand.grid(comm_idx = COM$comm_idx,sp_idx =SP$sp_idx) %>% 
+  arrange(comm_idx,sp_idx) %>% 
+  left_join(.,COM) %>% 
+  left_join(.,SP) %>% 
+  bind_cols(.,beta_posterior)
+
+# Combine the raw estimates and posterior estimates
+raw.all <- full_join(raw.raw,raw.post)
+```
+
+```{r}
+#########################################################
+# Mock1
+#########################################################
+# summarize raw estimates from reads for each species.
+mock1.raw <- mock1$env %>% group_by(community,Cycles,tech_rep) %>%
+      mutate(sum.ng = sum(start_conc_ng),
+             true.prop = start_conc_ng / sum.ng) %>%
+      ungroup() %>%
+      group_by(Species,community,Cycles,true.prop) %>%
+  summarize(simple.Mean=mean(propReads),
+            simple.N = length(tech_rep)) %>%
+  replace_na(list(raw.Mean=0,raw.SD=0,raw.SE=0))
+
+# extract predicted proportions from the posterior
+COM <- data.frame(community = levels(mock1$env$community %>% as.factor()))
+COM$comm_idx <- 1:nrow(COM)
+SP  <- mock1$env %>% distinct(Species,sp_idx) %>% as.data.frame()
+
+# These are the predicted intercepts for the posteriors
+beta_posterior <- mock1$stanMod_summary[["int_samp_small"]][, c(1,4:8)]
+colnames(beta_posterior) <- paste0("mock1.",substr(colnames(beta_posterior),1,nchar(colnames(beta_posterior))-1))
+colnames(beta_posterior)[1] <- "mock1.mean"
+beta_posterior <- as.data.frame(beta_posterior)
+
+mock1.post <-expand.grid(comm_idx = COM$comm_idx,sp_idx =SP$sp_idx) %>% 
+    arrange(comm_idx,sp_idx) %>% 
+    left_join(.,COM) %>% 
+    left_join(.,SP) %>% 
+    bind_cols(.,beta_posterior)
+
+# Combine the raw estimates and posterior estimates
+mock1.all <- full_join(mock1.raw,mock1.post)
+```
+
+```{r}
+# Combine mock results with raw reads.
+result.dat <- left_join(mock1.all,raw.all)
+```
+
+#raw data 
+```{r}
+raw_plot <- result.dat %>%
+  ggplot() + 
+  geom_errorbar(aes(x=true.prop,ymin=raw.2.5,ymax=raw.97.5,color=Species),width=0, size = .5) +
+  geom_point(aes(x=true.prop,y=raw.mean,color=Species), size = 2) +
+  #geom_smooth(aes(x=true.prop,y=raw.mean,color=Species), method = "lm", formula = y ~ x, se = FALSE) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black")  + 
+  #scale_color_manual(values = my_colors) + 
+  theme_classic() + 
+    labs(x = "true proportion",
+       y = "uncorrected eDNA read proportion") +
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 12))
+
+raw_plot
+```
+
+#mock-adjusted data 
+```{r}
+mock_plot <- result.dat %>%
+  ggplot() + 
+  geom_errorbar(aes(x=true.prop,ymin=mock1.2.5,ymax=mock1.97.5,color=Species),width=0, size = .5) +
+  geom_point(aes(x=true.prop,y=mock1.mean,color=Species), size = 2) +
+  #geom_smooth(aes(x=true.prop,y=mock1.mean,color=Species), method = "lm", formula = y ~ x, se = FALSE) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black")  + 
+  #scale_color_manual(values = my_colors) + 
+  theme_classic() + 
+    labs(x = "true proportion",
+       y = "corrected eDNA read proportion") +
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 12))
+mock_plot
+```
+
+put together into one plot 
+```{r, fig.width=10, fig.height=4}
+library(patchwork)
+
+combined_fig <- raw_plot + mock_plot + plot_layout(guides = 'collect') + plot_annotation(tag_levels = 'A') &
+    theme(plot.tag = element_text(face = 'bold'))
+combined_fig
+
+ggsave("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/nearshoreeven_raw_v_mock.png", plot = combined_fig, width = 12, height = 6, dpi = 300)
+```
+
+
+plot barplots for each of the unknown mock communities - true, mean raw, and mean mock-adjusted 
+```{r}
+temp1 <- result.dat %>%
+  ungroup() %>%
+  dplyr::select(Species, community, true.prop, mock1.mean, raw.mean) %>%
+  pivot_longer(cols = c(3:5), names_to = "method", values_to = "prop")
+
+# get rid of reference species denotation
+temp1 <- temp1 %>%
+  mutate(SP= ifelse(grepl("zRefSpecies_",Species),
+  substr(Species,13,nchar(Species)),
+  as.character(Species)))
+
+# rename "method"
+temp3 <- temp1 %>%
+  mutate(method = ifelse(method == "true.prop", "true proportion", method),
+         method = ifelse(method == "mock1.mean", "mock adjusted", method),
+         method = ifelse(method == "raw.mean", "raw proportion", method)) 
+
+my_order <- c("true proportion", "raw proportion", "mock adjusted")
+temp3$method <- factor(temp3$method, levels = my_order)
+
+plot_prop <- temp3 %>%
+  ggplot(aes(x=method, y=prop, fill=SP)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  #scale_fill_manual(values = my_colors) + 
+  facet_grid(~community, scales = 'free') +
+  labs(
+    y = "proportion of sequencing reads",
+    x = "method",
+    title = "") + 
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "right",
+    legend.title = element_blank()
+  )
+
+plot_prop
+
+ggsave("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/nearshoreeven_barplots.png", plot = plot_prop, width = 12, height = 6, dpi = 300)
+```
+
+
+
+## pull out estimates of alpha 
+```{r}
+alphas <- mock1$pars$alpha %>% as.data.frame()
+
+mock.sp   <- data.frame(Species=mock1.post %>% distinct(Species) %>% pull(Species))
+
+colnames(alphas) <- mock.sp$Species                       
+
+alpha_sum <- alphas %>% 
+                    pivot_longer(.,
+                          cols = colnames(alphas),
+                          names_to="species",values_to="val") %>%
+                    group_by(species) %>%
+                    summarize(Mean = mean(val),
+                        SD=sd(val),
+                        q.025 = quantile(val,probs=0.025),
+                        q.05 = quantile(val,probs=0.05),
+                        q.25 = quantile(val,probs=0.25),
+                        q.75 = quantile(val,probs=0.75),
+                        q.95 = quantile(val,probs=0.95),
+                        q.975 = quantile(val,probs=0.975))    
+
+alpha_sum <- alpha_sum %>% arrange(Mean)
+
+# get rid of reference species denotion
+alpha_sum <- alpha_sum %>%
+                      mutate(SP= ifelse(grepl("zRefSpecies_",species),
+                                       substr(species,13,nchar(species)),
+                                       as.character(species)))
+
+alpha_plot <-  ggplot(alpha_sum) +
+    geom_errorbarh(aes(xmin=q.25,xmax=q.75,y=SP),size=2,height=0) +
+    geom_errorbarh(aes(xmin=q.025,xmax=q.975,y=SP),size=0.8,height=0) +
+    geom_point(aes(x=Mean,y=SP,fill=SP,),size=3,shape=21) +
+    geom_vline(xintercept=0,linetype="dashed") +
+    #scale_fill_manual(values=clr_alpha_sum$manual.col %>% as.character()) +
+    scale_x_continuous("Estimated Alpha") +
+    scale_y_discrete(NULL) +
+    theme_bw() +
+    theme(legend.position = "none",
+          axis.text.y = element_text(size=10))
+
+alpha_plot
+```
+
+
+
+
+```{r}
+###############################################################333
+#### Pull out estimates of alpha, convert to CLR                        
+###############################################################333
+
+p_space_mock1 <- (exp(mock1$pars$alpha) / rowSums(exp(mock1$pars$alpha))) %>% as.data.frame()
+
+clr_alpha_list_mock <- compositions::clr(p_space_mock1)
+
+clr_alpha <- clr_alpha_list_mock %>% as.data.frame()
+
+mock.sp   <- data.frame(Species=mock1.post %>% distinct(Species) %>% pull(Species))
+
+colnames(clr_alpha) <- mock.sp$Species                       
+clr_alpha_sum <- clr_alpha %>% 
+                    pivot_longer( .,
+                          cols = colnames(clr_alpha),
+                          names_to="species",values_to="val") %>%
+                    group_by(species) %>%
+                    summarize(Mean = mean(val),
+                        SD=sd(val),
+                        q.025 = quantile(val,probs=0.025),
+                        q.05 = quantile(val,probs=0.05),
+                        q.25 = quantile(val,probs=0.25),
+                        q.75 = quantile(val,probs=0.75),
+                        q.95 = quantile(val,probs=0.95),
+                        q.975 = quantile(val,probs=0.975))    
+
+clr_alpha_sum <- clr_alpha_sum %>% arrange(Mean)
+
+# get rid of reference species denotion
+clr_alpha_sum <- clr_alpha_sum %>%
+                      mutate(SP= ifelse(grepl("zRefSpecies_",species),
+                                       substr(species,13,nchar(species)),
+                                       as.character(species)))
+
+p_clr <-  ggplot(clr_alpha_sum) +
+    geom_errorbarh(aes(xmin=q.25,xmax=q.75,y=SP),size=2,height=0) +
+    geom_errorbarh(aes(xmin=q.025,xmax=q.975,y=SP),size=0.8,height=0) +
+    geom_point(aes(x=Mean,y=SP,fill=SP,),size=3,shape=21) +
+    geom_vline(xintercept=0,linetype="dashed") +
+    #scale_fill_manual(values=clr_alpha_sum$manual.col %>% as.character()) +
+    scale_x_continuous("Amplification Efficiency (CLR)") +
+    scale_y_discrete(NULL) +
+    theme_bw() +
+    theme(legend.position = "none",
+          axis.text.y = element_text(size=10))
+
+p_clr
+```
+
+
+```{r}
+ggsave(p_clr, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/nearshoreeven_clr.png", width = 8, height = 5, units = "in")
+```

@@ -12,7 +12,8 @@ rename <- dplyr::rename
 
 input blastn results from custom rockfish database
 ```{r}
-rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_output/blastn_mockandbt_db534.txt")  %>%
+#rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_custom536_20250103.txt")  %>%   ## primers NOT removed w/ cutadapt
+rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_custom536_20250103_trimmed.txt")  %>% ## primers removed 
   filter(V4 > 100) %>% # make sure all retained matches are >100 bp
   select(-V5, -V6, -V7, -V8, -V9, -V10, -V11, -V12, -V13, -V14) %>%  #remove unnecessary columns
   group_by(V1, V2) %>% # group by the sequence key and the full taxonomy to reduce duplicate entries
@@ -23,7 +24,7 @@ rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_output/blastn_
 
 load the id's of accessions
 ```{r}
-id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_reference_db_534.csv") %>%
+id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_reference_db_536.csv") %>%
   rename(accession_id = Name)
 ```
 
@@ -33,14 +34,6 @@ rock_id <- rock %>%
   left_join(id) %>%
   rename(species = Organism)
 ```
-
-#### aside - exploring some asvs that don't get tax assignments 
-```{r}
-rock_id %>%
-  filter(qseqid == "ASV_032")
-```
-
-
 
 ## rank the hits by % identity
 ```{r}
@@ -61,11 +54,19 @@ seq_id_diff <- rock_id %>%
 seq_id_diff
 ```
 
-since there are very few bp difference among species, let's go with species within 0.5% of the top match and top match must be at least 99% 
+```{r}
+#seq_id_diff <- seq_id_diff %>%
+#  separate(qseqid, into = c("X", "ASV_ID"), sep = 3, remove = F) %>%
+#  mutate(ASV_ID = as.numeric(ASV_ID)) %>%
+#  arrange(ASV_ID)
+```
+
+
+since there are very few bp difference among species, let's go with species within 0.5% of the top match and top match must be at least 95% 
 ```{r}
 keepers <- seq_id_diff %>%
-  filter(diff < 0.5) %>%   #the 0.5% threshold essentially is requiring a 100% match 
-  filter(top_perc > 98)
+  filter(diff < 0.4) %>%   #the 0.5% threshold essentially is requiring a 100% match 
+  filter(top_perc > 95)
 ```
 
 
@@ -96,46 +97,89 @@ single_genus <- keepers %>%
   #unique
 ```
 
-remove underscore from taxon name 
+change non-species level ASV assignment so that it represents the species it makes up. 
+- Sebastes_ev = Sebastes emphaeus or Sebastes variegatus
+- Sebastes_pv  = 	Sebastes polyspinis or Sebastes variabilis
+
+```{r}
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes ciliatus") & any(species == "Sebastes variabilis") ~ "Sebastes cv",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes variegatus") & any(species == "Sebastes wilsoni") ~ "Sebastes vw",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes emphaeus") & any(species == "Sebastes variegatus") ~ "Sebastes ev",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes reedi") & any(species == "Sebastes crameri") ~ "Sebastes rc",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes entomelas") & any(species == "Sebastes mystinus") ~ "Sebastes em",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes ciliatus") & any(species == "Sebastes polyspinis") ~ "Sebastes cp",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes diaconus") & any(species == "Sebastes entomelas") ~ "Sebastes de",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes chlorostictus") & any(species == "Sebastes rosenblatti") ~ "Sebastes cr",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+```
+
 ```{r}
 rockfish_df <- singleton_df %>%
   bind_rows(single_genus)
 ```
 
-change non-species level ASV assignment so that it represents the species it makes up. 
-- Sebastes_ev = Sebastes emphaeus or Sebastes variegatus
-- Sebastes_pv  = 	Sebastes polyspinis or Sebastes variabilis
 ```{r}
-rockfish_df_2 <- rockfish_df %>%
-   mutate(taxon = ifelse(taxon == "Sebastes", "Sebates_ev", taxon)) ### , ## all Sebastes genus ids are S. emphaeus/ S. variegatus except one
-
-          
-          #taxon = ifelse(qseqid == "ASV75", "Sebates_cm", taxon)) #Sebastes crocotulus/Sebastes miniatus
-
-# rockfish_df_2 <- rockfish_df %>%
-#   mutate(taxon = ifelse(qseqid == "ASV24", "Sebates_ev", taxon),
-#          taxon = ifelse(qseqid == "ASV192", "Sebates_pv", taxon)) # ,
-#          taxon = ifelse(qseqid == "ASV39", "Sebates_pv", taxon),
-#          taxon = ifelse(qseqid == "ASV43", "Sebates_pv", taxon),
-#          taxon = ifelse(qseqid == "ASV5", "Sebates_az", taxon),
-#          taxon = ifelse(qseqid == "ASV63", "Sebates_az", taxon),
-#          taxon = ifelse(qseqid == "ASV69", "Sebates_pv", taxon),
-#          taxon = ifelse(qseqid == "ASV80", "Sebates_az", taxon))
-```
-
-```{r}
-rockfish_df_3 <- rockfish_df_2  %>%
+rockfish_df_collapsed <- rockfish_df  %>%
    select(qseqid, taxon) %>%
    unique()
 ```
 
 ```{r}
-write.csv(rockfish_df_3, "/home/kimberly.ledger/rockfish_mb/data/blastn_output/taxonomy_mockandbt.csv")
-```
-
-```{r}
-rockfish_df_3 %>%
-  select(taxon) %>%
-  unique()
+write.csv(rockfish_df_collapsed, "/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom536_20250103_trimmed.csv")
 ```
 

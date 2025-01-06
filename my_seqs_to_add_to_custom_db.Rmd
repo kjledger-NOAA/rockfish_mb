@@ -12,7 +12,7 @@ library(tidyverse)
 
 load asv table
 ```{r}
-asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/trimmed_20241204//filtered/outputs/ASVtable.csv") %>%
+asv_table <- read.csv("/genetics/edna/workdir/sebastes/tissues/untrimmed_20241231/filtered/outputs/ASVtable.csv") %>%
   dplyr::rename(sample_id = X)
 ```
 
@@ -51,12 +51,12 @@ deacon_asvs <- deacon %>%
 temp1 <- asv_table %>%
   select(2, all_of(deacon_asvs)) %>%
   group_by(common_name) %>%
-  summarise(across(ASV9:ASV262, sum, na.rm = TRUE)) %>%
+  summarise(across(ASV84:ASV9034, sum, na.rm = TRUE)) %>%
   t() %>%
   as.data.frame()
 
 colnames(temp1) <- temp1[1,]  
-temp1 <- temp1[-1,-45]  
+temp1 <- temp1[-1,-46]  
 
 temp2 <- temp1 %>%
   mutate(across(everything(), as.numeric)) %>%
@@ -77,14 +77,14 @@ subset fasta to be just the deacons
 library(Biostrings)
 
 # Define the input and output file paths
-fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
-output_file <- "/home/kimberly.ledger/rockfish_mb//outputs/deacon.fasta"
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/untrimmed_20241231/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb//outputs/deacon_untrimmed.fasta"
 
 # Read the FASTA file
 fasta_seqs <- readDNAStringSet(fasta_file)
 
 # Filter the FASTA sequences based on the ASV headers
-deacon_seqs <- fasta_seqs[names(fasta_seqs) %in% deacon_filtered]
+deacon_seqs <- fasta_seqs[names(fasta_seqs) %in% deacon_asvs]
 
 # Write the filtered sequences to a new FASTA file
 writeXStringSet(deacon_seqs, filepath = output_file)
@@ -147,12 +147,12 @@ sunset_asvs <- sunset %>%
 temp1 <- asv_table %>%
   select(2, all_of(sunset_asvs)) %>%
   group_by(common_name) %>%
-  summarise(across(ASV75:ASV236, sum, na.rm = TRUE)) %>%
+  summarise(across(ASV591:ASV9035, sum, na.rm = TRUE)) %>%
   t() %>%
   as.data.frame()
 
 colnames(temp1) <- temp1[1,]  
-temp1 <- temp1[-1,-45]  
+temp1 <- temp1[-1,-46]  
 
 temp2 <- temp1 %>%
   mutate(across(everything(), as.numeric)) %>%
@@ -163,7 +163,7 @@ temp2 <- temp1 %>%
 ```{r}
 sunset_filtered <- temp2 %>%
   filter(prop_sunset > 0.9) %>%
-  filter(total > 100) %>%
+  #filter(total > 100) %>%
   rownames()
 ```
 
@@ -173,8 +173,8 @@ subset fasta to be just the sunsets
 library(Biostrings)
 
 # Define the input and output file paths
-fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
-output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/sunset.fasta"
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/untrimmed_20241231/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/sunset_untrimmed.fasta"
 
 # Read the FASTA file
 fasta_seqs <- readDNAStringSet(fasta_file)
@@ -207,12 +207,12 @@ olive_asvs <- olive %>%
 temp1 <- asv_table %>%
   select(2, all_of(olive_asvs)) %>%
   group_by(common_name) %>%
-  summarise(across(ASV77:ASV212, sum, na.rm = TRUE)) %>%
+  summarise(across(ASV105:ASV7951, sum, na.rm = TRUE)) %>%
   t() %>%
   as.data.frame()
 
 colnames(temp1) <- temp1[1,]  
-temp1 <- temp1[-1,-45]  
+temp1 <- temp1[-1,-46]  
 
 temp2 <- temp1 %>%
   mutate(across(everything(), as.numeric)) %>%
@@ -234,14 +234,14 @@ subset fasta to be just the olives
 library(Biostrings)
 
 # Define the input and output file paths
-fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
-output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/olive.fasta"
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/untrimmed_20241231/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/olive_untrimmed.fasta"
 
 # Read the FASTA file
 fasta_seqs <- readDNAStringSet(fasta_file)
 
 # Filter the FASTA sequences based on the ASV headers
-olive_seqs <- fasta_seqs[names(fasta_seqs) %in% olive_filtered]
+olive_seqs <- fasta_seqs[names(fasta_seqs) %in% olive_asvs]
 
 # Write the filtered sequences to a new FASTA file
 writeXStringSet(olive_seqs, filepath = output_file)
@@ -271,12 +271,12 @@ gopher_asvs <- gopher %>%
 temp1 <- asv_table %>%
   select(2, all_of(gopher_asvs)) %>%
   group_by(common_name) %>%
-  summarise(across(ASV81:ASV237, sum, na.rm = TRUE)) %>%
+  summarise(across(ASV286:ASV5534, sum, na.rm = TRUE)) %>%
   t() %>%
   as.data.frame()
 
 colnames(temp1) <- temp1[1,]  
-temp1 <- temp1[-1,-45]  
+temp1 <- temp1[-1,-46]  
 
 temp2 <- temp1 %>%
   mutate(across(everything(), as.numeric)) %>%
@@ -298,14 +298,14 @@ subset fasta to be just the gophers
 library(Biostrings)
 
 # Define the input and output file paths
-fasta_file <- "/genetics/edna/workdir/sebastes/tissues/trimmed_20241204/filtered/outputs/myasvs.fasta"
-output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/gopher.fasta"
+fasta_file <- "/genetics/edna/workdir/sebastes/tissues/untrimmed_20241231/filtered/outputs/myasvs.fasta"
+output_file <- "/home/kimberly.ledger/rockfish_mb/outputs/gopher_untrimmed.fasta"
 
 # Read the FASTA file
 fasta_seqs <- readDNAStringSet(fasta_file)
 
 # Filter the FASTA sequences based on the ASV headers
-gopher_seqs <- fasta_seqs[names(fasta_seqs) %in% gopher_filtered]
+gopher_seqs <- fasta_seqs[names(fasta_seqs) %in% gopher_asvs]
 
 # Write the filtered sequences to a new FASTA file
 writeXStringSet(gopher_seqs, filepath = output_file)
