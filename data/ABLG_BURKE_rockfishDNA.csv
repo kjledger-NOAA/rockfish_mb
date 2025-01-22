@@ -1,82 +1,82 @@
 sample_id,common_name,species_name
-ABLG-3990,black,Sebastes melanops
-ABLG-4140,black,Sebastes melanops
-ABLG-4710,black,Sebastes melanops
-ABLG-9850,black,Sebastes melanops
-ABLG-9857,black,Sebastes melanops
-ABLG-10709,black,Sebastes melanops
-ABLG-11428,black,Sebastes melanops
-ABLG-4671,blackspotted,Sebastes melanostictus
-ABLG-4659,blackspotted,Sebastes melanostictus
-ABLG-4637,blackspotted,Sebastes melanostictus
-ABLG-1885,blackspotted,Sebastes melanostictus
-ABLG-1892,blackspotted,Sebastes melanostictus
-ABLG-10032,bocaccio,Sebastes paucispinis
-ABLG-10015,canary,Sebastes pinniger
-ABLG-14835,copper,Sebastes caurinus
-ABLG-14842,copper,Sebastes caurinus
-ABLG-19455,copper,Sebastes caurinus
-ABLG-14895,copper,Sebastes caurinus
-ABLG-14867,copper,Sebastes caurinus
-ABLG-4627,dark dusky,Sebastes ciliatus
-ABLG-4421,dark dusky,Sebastes ciliatus
-ABLG-4373,dark dusky,Sebastes ciliatus
-ABLG-4570,dark dusky,Sebastes ciliatus
-ABLG-4378,dark dusky,Sebastes ciliatus
-ABLG-4445,dark dusky,Sebastes ciliatus
-ABLG-9891,deacon,Sebastes diaconus
-ABLG-9895,deacon,Sebastes diaconus
-ABLG-10628,deacon,Sebastes diaconus
-ABLG-10622,deacon,Sebastes diaconus
-ABLG-10590,deacon,Sebastes diaconus
-ABLG-4474,light dusky,Sebastes variabilis
-ABLG-4493,light dusky,Sebastes variabilis
-ABLG-4503,light dusky,Sebastes variabilis
-ABLG-4588,light dusky,Sebastes variabilis
-ABLG-4592,light dusky,Sebastes variabilis
-ABLG-4601,light dusky,Sebastes variabilis
-ABLG-10058,dark dusky,Sebastes ciliatus
-ABLG-12278,light dusky,Sebastes variabilis
-ABLG-9486,northern,Sebastes polyspinis
-ABLG-9601,northern,Sebastes polyspinis
-ABLG-9545,northern,Sebastes polyspinis
-ABLG-9565,northern,Sebastes polyspinis
-ABLG-9495,northern,Sebastes polyspinis
-ABLG-9570,northern,Sebastes polyspinis
-ABLG-651,pacific ocean perch,Sebastes alutus
-ABLG-8546,pacific ocean perch,Sebastes alutus
-ABLG-710,pacific ocean perch,Sebastes alutus
-ABLG-755,pacific ocean perch,Sebastes alutus
-ABLG-663,pacific ocean perch,Sebastes alutus
-ABLG-674,pacific ocean perch,Sebastes alutus
-ABLG-660,pacific ocean perch,Sebastes alutus
-ABLG-8566,pacific ocean perch,Sebastes alutus
-ABLG-11698,quillback,Sebastes maliger
-ABLG-12537,quillback,Sebastes maliger
-ABLG-12320,quillback,Sebastes maliger
-ABLG-19266,quillback,Sebastes maliger
-ABLG-19416,quillback,Sebastes maliger
-ABLG-19352,quillback,Sebastes maliger
-ABLG-4657,rougheye,Sebastes aleutianus
-ABLG-10020,rougheye,Sebastes aleutianus
-ABLG-4670,rougheye,Sebastes aleutianus
-ABLG-11514,rougheye,Sebastes aleutianus
-ABLG-10023,rougheye,Sebastes aleutianus
-ABLG-11942,vermilion,Sebastes miniatus
-ABLG-11956,vermilion,Sebastes miniatus
-ABLG-11934,vermilion,Sebastes miniatus
-ABLG-11955,vermilion,Sebastes miniatus
-ABLG-9868,vermilion,Sebastes miniatus
-ABLG-9983,widow,Sebastes entomelas
-ABLG-9981,widow,Sebastes entomelas
-ABLG-9978,widow,Sebastes entomelas
-ABLG-10689,widow,Sebastes entomelas
-ABLG-9972,widow,Sebastes entomelas
-ABLG-11754,yellowtail,Sebastes flavidus
-ABLG-11758,yellowtail,Sebastes flavidus
-ABLG-12479,yellowtail,Sebastes flavidus
-ABLG-10130,yellowtail,Sebastes flavidus
-ABLG-10124,yellowtail,Sebastes flavidus
+ABLG_3990,black,Sebastes melanops
+ABLG_4140,black,Sebastes melanops
+ABLG_4710,black,Sebastes melanops
+ABLG_9850,black,Sebastes melanops
+ABLG_9857,black,Sebastes melanops
+ABLG_10709,black,Sebastes melanops
+ABLG_11428,black,Sebastes melanops
+ABLG_4671,blackspotted,Sebastes melanostictus
+ABLG_4659,blackspotted,Sebastes melanostictus
+ABLG_4637,blackspotted,Sebastes melanostictus
+ABLG_1885,blackspotted,Sebastes melanostictus
+ABLG_1892,blackspotted,Sebastes melanostictus
+ABLG_10032,bocaccio,Sebastes paucispinis
+ABLG_10015,canary,Sebastes pinniger
+ABLG_14835,copper,Sebastes caurinus
+ABLG_14842,copper,Sebastes caurinus
+ABLG_19455,copper,Sebastes caurinus
+ABLG_14895,copper,Sebastes caurinus
+ABLG_14867,copper,Sebastes caurinus
+ABLG_4627,dark,Sebastes ciliatus
+ABLG_4421,dark,Sebastes ciliatus
+ABLG_4373,dark,Sebastes ciliatus
+ABLG_4570,dark,Sebastes ciliatus
+ABLG_4378,dark,Sebastes ciliatus
+ABLG_4445,dark,Sebastes ciliatus
+ABLG_9891,deacon,Sebastes diaconus
+ABLG_9895,deacon,Sebastes diaconus
+ABLG_10628,deacon,Sebastes diaconus
+ABLG_10622,deacon,Sebastes diaconus
+ABLG_10590,deacon,Sebastes diaconus
+ABLG_4474,dusky,Sebastes variabilis
+ABLG_4493,dark,Sebastes ciliatus
+ABLG_4503,dusky,Sebastes variabilis
+ABLG_4588,dark,Sebastes ciliatus
+ABLG_4592,dark,Sebastes ciliatus
+ABLG_4601,dusky,Sebastes variabilis
+ABLG_10058,dark,Sebastes ciliatus
+ABLG_12278,dusky,Sebastes variabilis
+ABLG_9486,northern,Sebastes polyspinis
+ABLG_9601,northern,Sebastes polyspinis
+ABLG_9545,northern,Sebastes polyspinis
+ABLG_9565,northern,Sebastes polyspinis
+ABLG_9495,northern,Sebastes polyspinis
+ABLG_9570,northern,Sebastes polyspinis
+ABLG_651,pacific ocean perch,Sebastes alutus
+ABLG_8546,pacific ocean perch,Sebastes alutus
+ABLG_710,pacific ocean perch,Sebastes alutus
+ABLG_755,pacific ocean perch,Sebastes alutus
+ABLG_663,pacific ocean perch,Sebastes alutus
+ABLG_674,pacific ocean perch,Sebastes alutus
+ABLG_660,pacific ocean perch,Sebastes alutus
+ABLG_8566,pacific ocean perch,Sebastes alutus
+ABLG_11698,quillback,Sebastes maliger
+ABLG_12537,quillback,Sebastes maliger
+ABLG_12320,quillback,Sebastes maliger
+ABLG_19266,quillback,Sebastes maliger
+ABLG_19416,quillback,Sebastes maliger
+ABLG_19352,quillback,Sebastes maliger
+ABLG_4657,rougheye,Sebastes aleutianus
+ABLG_10020,rougheye,Sebastes aleutianus
+ABLG_4670,rougheye,Sebastes aleutianus
+ABLG_11514,rougheye,Sebastes aleutianus
+ABLG_10023,rougheye,Sebastes aleutianus
+ABLG_11942,vermilion,Sebastes miniatus
+ABLG_11956,vermilion,Sebastes miniatus
+ABLG_11934,vermilion,Sebastes miniatus
+ABLG_11955,vermilion,Sebastes miniatus
+ABLG_9868,vermilion,Sebastes miniatus
+ABLG_9983,widow,Sebastes entomelas
+ABLG_9981,widow,Sebastes entomelas
+ABLG_9978,widow,Sebastes entomelas
+ABLG_10689,widow,Sebastes entomelas
+ABLG_9972,widow,Sebastes entomelas
+ABLG_11754,yellowtail,Sebastes flavidus
+ABLG_11758,yellowtail,Sebastes flavidus
+ABLG_12479,yellowtail,Sebastes flavidus
+ABLG_10130,yellowtail,Sebastes flavidus
+ABLG_10124,yellowtail,Sebastes flavidus
 43624,stripetail,Sebastes saxicola
 43625,broadbanded thornyhead,Sebastolobus macrochir
 43626,blackgill,Sebastes melanostomus
@@ -165,10 +165,10 @@ ABLG11527,gopher,Sebastes carnatus
 ABLG11528,gopher,Sebastes carnatus
 ABLG11529,gopher,Sebastes carnatus
 ABLG11530,gopher,Sebastes carnatus
-ABLG4621,dark dusky,Sebastes ciliatus
-ABLG4622,dark dusky,Sebastes ciliatus
-ABLG4623,dark dusky,Sebastes ciliatus
-ABLG4624,dark dusky,Sebastes ciliatus
+ABLG4621,dark,Sebastes ciliatus
+ABLG4622,dark,Sebastes ciliatus
+ABLG4623,dark,Sebastes ciliatus
+ABLG4624,dark,Sebastes ciliatus
 ABLG11609,sunset,Sebastes crocotulus
 ABLG11610,sunset,Sebastes crocotulus
 ABLG11613,sunset,Sebastes crocotulus
@@ -177,10 +177,10 @@ ABLG11655,olive,Sebastes serranoides
 ABLG11657,olive,Sebastes serranoides
 ABLG11660,olive,Sebastes serranoides
 ABLG11662,olive,Sebastes serranoides
-ABLG4486,light dusky,Sebastes variabilis
-ABLG4520,light dusky,Sebastes variabilis
-ABLG4531,light dusky,Sebastes variabilis
-ABLG4534,light dusky,Sebastes variabilis
+ABLG4486,dusky,Sebastes variabilis
+ABLG4520,dusky,Sebastes variabilis
+ABLG4531,dusky,Sebastes variabilis
+ABLG4534,dusky,Sebastes variabilis
 ABLG29562,harlequin,Sebastes variegatus
 ABLG29563,harlequin,Sebastes variegatus
 ABLG29564,harlequin,Sebastes variegatus

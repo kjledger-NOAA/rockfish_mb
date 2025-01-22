@@ -1,0 +1,263 @@
+---
+title: "cil-poly-var"
+output: html_document
+date: "2025-01-13"
+---
+
+libraries
+```{r}
+library(tidyverse)
+```
+
+load matrix of mini-loop
+```{r}
+matrix <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cil-poly-var-dloop-matrix.csv")
+```
+
+long format 
+```{r}
+matrix_long <- matrix %>%
+  pivot_longer(cols = c(2:202), names_to = "sample2", values_to = "identity") %>%
+  rename(sample1 = X) %>%
+  filter(!is.na(identity)) %>%
+   mutate(sample2 = sub("^X", "", sample2))
+```
+
+load sample metadata
+```{r}
+meta <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cil-poly-var-dloop-meta.csv") %>%
+  filter(Name != "Nucleotide alignment") %>%
+  filter(Name != "Nucleotide alignment consensus tree") %>%
+  select(!Description) 
+```
+
+join
+```{r}
+matrix_long <- matrix_long %>%
+  left_join(meta, by = c("sample1" = "Name")) %>%
+  rename(organism1 = Organism) %>%
+  left_join(meta, by = c("sample2" = "Name")) %>%
+  rename(organism2 = Organism) 
+```
+
+
+first look closer at ciliatus
+```{r}
+matrix_long %>%
+  filter(sample1 == "33267_consensus") %>%
+  filter(organism1 == organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+
+matrix_long %>%
+  filter(sample1 == "33267_consensus") %>%
+  filter(organism1 != organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+```
+
+
+how about polyspinus
+```{r}
+matrix_long %>%
+  filter(sample1 == "ABLG9548_consensus") %>%
+  filter(organism1 == organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+
+matrix_long %>%
+  filter(sample1 == "ABLG9548_consensus") %>%
+  filter(organism1 != organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+```
+
+
+### starting here 
+
+
+```{r}
+library(ape)
+library(pegas)
+```
+
+
+```{r}
+data <- read.dna("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_minidloop_aligned.fasta", format = "fasta")
+#data <- read.dna("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_minidloop_aligned_filtered.fasta", format = "fasta")
+
+print(data)
+```
+
+compute haplotypes 
+```{r}
+haps <- haplotype(data)
+haps
+```
+
+```{r}
+#get info about what samples have which haplotypes
+hapInfo <- stack(setNames(attr(haps,"index"),rownames(haps)))
+names(hapInfo) <- c("index","haplotype")
+head(hapInfo)
+
+#need to join the sample names 
+meta_aligned <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_meta.csv") %>%
+  mutate(Name = ifelse(Name == '31082_consensus extraction', '31082_consensus_extraction', Name))
+#meta_aligned <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_meta_filtered.csv")
+
+merged <- data.frame(cbind(hapInfo,meta_aligned[hapInfo$index,]))
+head(merged)
+```
+
+
+color by species 
+```{r}
+pie <- table(merged$haplotype, merged$Organism)
+head(pie)
+```
+
+```{r}
+net <- haploNet(haps)
+plot(net,size=attr(net,"freq"),pie=pie)
+legend("bottomleft", colnames(pie), col=rainbow(ncol(pie)), pch=19, ncol=2)
+```
+
+
+is it possible to filter this by haplotype frequency? 
+```{r}
+hap_freq <- as.data.frame(summary(haps))
+colnames(hap_freq) <- c("frequency")
+
+haps_to_keep <- hap_freq %>%
+  filter(frequency > 2)
+haps_to_keep$haplotype <- rownames(haps_to_keep)
+```
+
+
+join the metadata and filter 
+```{r}
+samples_to_keep <- merged %>%
+  filter(haplotype %in% haps_to_keep$haplotype)
+
+data_filtered <- data[rownames(data) %in% samples_to_keep$Name, ]
+data_filtered
+```
+
+compute haplotypes 
+```{r}
+haps_filtered <- haplotype(data_filtered)
+haps_filtered
+```
+
+
+get the metadata 
+```{r}
+#get info about what samples have which haplotypes
+hapInfo_filtered <- stack(setNames(attr(haps_filtered,"index"),rownames(haps_filtered)))
+names(hapInfo_filtered) <- c("index","haplotype")
+head(hapInfo_filtered)
+
+meta_filtered <- meta_aligned %>%
+  filter(Name %in% samples_to_keep$Name)
+
+merged_filtered <- data.frame(cbind(hapInfo_filtered, meta_filtered[hapInfo_filtered$index,]))
+head(merged_filtered)
+```
+
+
+color by species 
+```{r}
+pie_filtered <- table(merged_filtered$haplotype, merged_filtered$Organism)
+head(pie_filtered)
+```
+
+```{r}
+net_filtered <- haploNet(haps_filtered)
+plot(net_filtered,size=attr(net_filtered,"freq"),pie=pie_filtered)
+#legend("bottomright", colnames(pie_filtered), col=rainbow(ncol(pie_filtered)), pch=19, ncol=2)
+```
+
+```{r}
+plot(net_filtered,size=attr(net_filtered,"freq"),pie=pie_filtered, labels = NA)
+legend("topleft", colnames(pie_filtered), col=rainbow(ncol(pie_filtered)), pch=19, ncol=2)
+```
+
+
+name each haplotype by it's composition 
+
+
+
+```{r}
+haplotype_freqs <- data.frame(pie_filtered) %>%
+  group_by(Var1) %>% 
+  mutate(total= sum(Freq)) %>%
+  mutate(proportion = Freq/total) #%>%
+  #ungroup() %>%
+  #pivot_wider(names_from = Var2, values_from = Freq) %>%
+  #dplyr::rename(haplotype = Var1)
+
+haplotype_freqs_table <- data.frame(pie_filtered) %>%
+  pivot_wider(names_from = Var2, values_from = Freq) %>%
+  dplyr::rename(haplotype = Var1)
+```
+
+
+## trying a cluster analysis 
+```{r}
+library(ape)
+
+data <- read.dna("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_minidloop_aligned.fasta", format = "fasta")
+
+dist_matrix <- dist.dna(data)
+
+hc <- hclust(dist_matrix)
+
+plot(hc)
+
+clusters <- cutree(hc, h = 0.02)
+clusters
+
+# Convert hierarchical clustering result into a phylo object
+tree <- as.phylo(hc)
+
+# Assign colors based on clusters
+cluster_colors <- rainbow(length(unique(clusters)))[clusters]
+
+# Plot the tree with colors for each cluster
+plot(tree, tip.color = cluster_colors, main = "Tree Colored by Cluster")
+
+# Assuming 'clusters' contains the cluster assignments after using cutree
+cluster_counts <- table(clusters)
+
+# Print the count of sequences in each cluster
+print(cluster_counts)
+
+# Get the sample names (sequence names) and cluster assignment 
+cluster_df <- data.frame(clusters)
+cluster_df$Name<- rownames(cluster_df)
+
+#join spp id 
+meta_aligned <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_meta.csv")
+
+cluster_df <- cluster_df %>%
+  left_join(meta_aligned, by = c("Name")) %>%
+  mutate(Organism = ifelse(Name == "31082_consensus_extraction", "Sebastes polyspinis", Organism))
+
+cluster_table <- cluster_df %>%
+  group_by(clusters, Organism) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(clusters) %>%
+  mutate(total = sum(count)) %>%
+  pivot_wider(names_from = Organism, values_from = count, values_fill = 0)
+  
+```
+
+okay, maybe do some removal of sequences that aren't similar to any other. but also some clustering of some sequences to those that are very similar - so not to drop too much data. 
+
+

@@ -5,8 +5,7 @@ date: "2024-11-27"
 output: github_document
 ---
 
-things to do:
-- compare estimated alpha's (amplification efficiency) using different mock communities as the reference
+quantify alpha - amplification efficiencies 
 
 libraries
 ```{r}
@@ -19,7 +18,7 @@ library(rstan)
 
 load mock community data
 ```{r}
-mockcom_data <- read.csv("/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20241227.csv") %>%
+mockcom_data <- read.csv("/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20250117.csv") %>%
   mutate(tech_rep = as.factor(tech_rep),   ## i changed this from as.numeric to as.factor because of my rep format
          Cycles = as.numeric(Cycles)) %>%
   filter(start_conc_ng > 0) %>%   ## remove any reads belonging to species NOT in the mock community - some of these could be misid'd asvs - should check
@@ -57,7 +56,7 @@ i'm going to check how well the calibration works by comparing alpha values deri
 ```{r}
 #set all or some mock communities as unknowns 
 env <- mockcom_data %>%  
-  filter(!community %in% c("nearshore_even")) %>%  
+  #filter(!community %in% c("all_even")) %>%  
   rename(Species = taxon)
   
 env <- env %>%  
@@ -93,7 +92,7 @@ mock community (i.e., known) samples with the following column names:
 ```{r}
 #set up mock community samples
 mc <- mockcom_data %>% 
-  filter(community %in% c("nearshore_even")) %>%
+  #filter(community %in% c("all_even")) %>%
     rename("Species" = "taxon")  #mock comm samples
 mc$Species[mc$Species == mostCommon] <- paste0("zRefSpecies_", mostCommon)   #make the most common species the reference species
   
@@ -386,7 +385,7 @@ Output <- list(
 ```
 
 ```{r}
-save(Output,file=paste0("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/raw_20241227_nearshoreeven",".Rdata"))
+#save(Output,file=paste0("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/raw_20241227_nearshoreeven",".Rdata"))
 ```
 
 
@@ -601,5 +600,5 @@ Output <- list(
 ```
 
 ```{r}
-save(Output,file=paste0("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mock_20241227_nearshoreeven",".Rdata"))
+save(Output,file=paste0("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mock_20250117_allmocks",".Rdata"))
 ```

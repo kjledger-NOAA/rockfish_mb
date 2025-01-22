@@ -18,7 +18,7 @@ library(reshape2)
 
 load sample metadata
 ```{r}
-metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/mock_bt22_metadata.csv") %>%
+metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/metadata_tissue_mock_bt22.csv") %>%
   rename(Sample_ID = sample_ID) %>%
   mutate(sample_type = ifelse(Sample_ID == "PC", "pcr_blank", sample_type),
          sample_type = ifelse(Sample_ID == "NC", "positive", sample_type))    ### if flip-flopped these IDs 
@@ -26,7 +26,7 @@ metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/mock_bt22_metadata.
 
 check sequence table outputs
 ```{r}
-asv_table <- readRDS("/home/kimberly.ledger/rockfish_mb/data/blastn_output/filtered.seqTab.RDS") %>%
+asv_table <- readRDS("/home/kimberly.ledger/rockfish_mb/data/dadasnake_output/filtered.seqTab.RDS") %>%
   select(!Row.names)
 
 #transpose 
@@ -69,7 +69,7 @@ asv_last <- ncol(asv_table_with_sample_type)
 # account for likely contaminants 
 
 step 1: tag-jumping: subtract the proportion of reads that jumped into the positive control samples from each environmental sample 
-step 2: remove ASVs that don't get a fish taxonomic assignment 
+step 2: remove ASVs that don't get a rockfish taxonomic assignment 
 step 3: remove any ASVs that don't show up in field samples 
 step 4: remove low read depth samples based on ASV accumulation curve  
 step 5: check dissimilarity across PCR replicates and remove any replicates with high dissimilarity 
@@ -118,51 +118,36 @@ prop_asvs_in_positives <- asv_table_with_sample_type %>%
   arrange(desc(max_prop))
 ```
 
+i'm not loving that there is only one pc sample to base this on. not going to subtract reads here. 
+
 subtract the max proportion of tag-jumped reads for each ASV from samples
 ```{r}
-indexhop_table <- asv_table_with_sample_type %>%
+asv_table_long <- asv_table_with_sample_type %>%
   pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
   mutate(reads = as.numeric(reads)) %>%
-  mutate(reads = ifelse(is.na(reads), 0, reads)) %>%
-  group_by(Sample_ID) %>%
-  mutate(TotalReadsPerSample = sum(reads, na.rm = T)) %>%
-  left_join(prop_asvs_in_positives, by = c("ASV")) %>%
-  mutate(IndexHoppingReads = TotalReadsPerSample*max_prop) %>%
-  mutate(reads_IndexHop_removed = reads - IndexHoppingReads) %>%
-  mutate(reads_IndexHop_removed = if_else(reads_IndexHop_removed < 0, 0, reads_IndexHop_removed))
+  mutate(reads = ifelse(is.na(reads), 0, reads))
 ```
 
-clean up the table by removing columns no longer needed 
-```{r}
-asv_table_filter1 <- indexhop_table %>%
-  dplyr::select(Sample_ID, sample_type, ASV, reads_IndexHop_removed) %>%
-  dplyr::rename(reads = reads_IndexHop_removed)
-```
-
-this is a summary of the number of reads removed by ASV and sample_ID
-```{r}
-decontaminated_1 <- indexhop_table %>%
-  dplyr::select(Sample_ID, ASV, IndexHoppingReads) %>%
-  pivot_wider(names_from = "ASV", values_from = "IndexHoppingReads")
-```
 
 ## Step 2. Remove ASVs that don't get a taxonomic assignment  
 
 ```{r}
-taxonomy <- read.csv("/home/kimberly.ledger/rockfish_mb/data/blastn_output/taxonomy_mockandbt.csv") %>% 
+taxonomy <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20250117.csv") %>% 
   select(!X) %>%
   rename(ASV = qseqid)
 
-asv_table_filter2 <- asv_table_filter1 %>%
+asv_table_filter1 <- asv_table_long %>%
   filter(ASV %in% taxonomy$ASV)
+
+length(unique(taxonomy$ASV))
 ```
 
 
-## Step 3. NOT DOING THIS!!!!! 
-Remove ASVs that do not occur in environmental samples or mock communities 
+## Step 3. Remove ASVs that do not occur in samples, tissues, or mock communities
+i.e. just in controls or MIA
 
 ```{r}
-reads_per_type_ASV <- asv_table_filter2 %>%
+reads_per_type_ASV <- asv_table_filter1 %>%
   group_by(ASV, sample_type) %>%
   summarize(TotalReadsPerASV = sum(reads, na.rm = TRUE)) %>%
   arrange(ASV)
@@ -172,74 +157,104 @@ what ASVs have no reads in samples or mock communities, but reads in the control
 ```{r}
 not_in_samples <- reads_per_type_ASV %>%
   pivot_wider(names_from = "sample_type", values_from = c("TotalReadsPerASV")) %>%
-    filter(sample < 1 & mock < 1 & tissue < 1)
+    filter(sample < 1 & mock < 1 & tissue < 1 & field_blank < 1)
 not_in_samples
 ```
 
-these are all pop and northern asvs, which would make sense for field contaimination 
-
-remove these from the asv table
-```{r}
-#asv_table_filter3 <- asv_table_filter2 %>%
-#  filter(!ASV %in% not_in_samples$ASV)
-```
-
+there are none. 
 
 ## Step 4. Remove low read depth samples based on ASV accumulation curve
 
+run separately for tissue and eDNA samples 
 ```{r}
 library(vegan)
 
-asv_table_wide <- asv_table_filter2 %>%
+asv_table_wide_tissue <- asv_table_filter1 %>%
+  filter(sample_type == "tissue") %>%
+  filter(!Sample_ID %in% c("34137", "34138", "34139", "34140")) %>%  ## remove wierd yelloweye tissues
   select(!sample_type) %>%
   mutate(reads = as.integer(reads)) %>%
   pivot_wider(names_from = ASV, values_from = reads)
 
-sample_IDs <- asv_table_wide$Sample_ID
+sample_IDs <- asv_table_wide_tissue$Sample_ID
 
-asv_table_wide <- asv_table_wide %>%
+asv_table_wide_tissue <- asv_table_wide_tissue %>%
   ungroup() %>%
   select(-Sample_ID)
 
 ## plots the figure
-rarecurve(asv_table_wide, step = 20, col = "blue", label = FALSE, 
+rarecurve(asv_table_wide_tissue, step = 20, col = "blue", label = FALSE, 
           main = "Sequencing Effort Curves",
           xlab = "Sequencing Depth", ylab = "Number of ASVs Identified",
-          xlim = c(0,5000))
+          xlim = c(0,400))
 ```
+
+
+```{r}
+asv_table_wide_sample <- asv_table_filter1 %>%
+  filter(sample_type == "sample") %>%
+  select(!sample_type) %>%
+  mutate(reads = as.integer(reads)) %>%
+  pivot_wider(names_from = ASV, values_from = reads)
+
+sample_IDs <- asv_table_wide_sample$Sample_ID
+
+asv_table_wide_sample <- asv_table_wide_sample %>%
+  ungroup() %>%
+  select(-Sample_ID)
+
+## plots the figure
+rarecurve(asv_table_wide_sample, step = 20, col = "blue", label = FALSE, 
+          main = "Sequencing Effort Curves",
+          xlab = "Sequencing Depth", ylab = "Number of ASVs Identified",
+          xlim = c(0,1000))
+```
+
 
 summarize in a table how many pcr replicates meet certain read count thresholds 
 ```{r}
-read_summary <- asv_table_filter2 %>%
+read_summary <- asv_table_filter1 %>%
+  filter(!Sample_ID %in% c("34137", "34138", "34139", "34140")) %>%  ## remove wierd yelloweye tissues
   group_by(Sample_ID, sample_type) %>%
   summarize(tot_reads = sum(reads)) %>%
   arrange(desc(tot_reads)) %>%
   group_by(sample_type) %>%
   summarize(atleast1 = sum(tot_reads >= 1),
-            atleast250 = sum(tot_reads >= 250),
+            atleast100 = sum(tot_reads >= 100),
+            atleast200 = sum(tot_reads >= 200),
             atleast500 = sum(tot_reads >= 500),
-            atleast750 = sum(tot_reads >= 750),
-            atleast1k = sum(tot_reads >= 1000),
-            atleast2k = sum(tot_reads >= 2000))
+            atleast1k = sum(tot_reads >= 1000))
 ```
 
-based on taxa accumulation curve and summary table, we will remove any pcr replicate with fewer than 1000 reads from downstream analyses
+based on taxa accumulation curve and summary table, we will remove any pcr replicate with fewer than 200 reads from downstream analyses (regardless of sample type)
 
 ```{r}
-reps_below <- asv_table_filter2 %>%
+reps_below <- asv_table_filter1 %>%
   group_by(Sample_ID) %>%
   summarise(tot_reads = sum(reads)) %>%
-  filter(tot_reads < 1000)
+  filter(tot_reads < 200)
 ```
 
 ```{r}
-asv_table_filter4 <- asv_table_filter2 %>%
+asv_table_filter2 <- asv_table_filter1 %>%
   filter(!Sample_ID %in% reps_below$Sample_ID)
 ```
 
-
 ```{r}
-write.csv(asv_table_filter4, "/home/kimberly.ledger/rockfish_mb/data/decontamination/decontaminated_asv_table.csv")
+sum(asv_table_filter1$reads)
+sum(asv_table_filter2$reads)
+sum(asv_table_long$reads)
 ```
 
+```{r}
+2290034/2295159
+```
+```{r}
+asv_table_with_sample_type %>%
+  group_by(sample_type) %>%
+  summarize(count = n())
+```
 
+```{r}
+write.csv(asv_table_filter2, "/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv")
+```

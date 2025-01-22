@@ -1,0 +1,460 @@
+---
+title: "rockfish eDNA samples"
+output: html_document
+date: "2024-12-20"
+---
+
+using 'decontaminated'/filtered samples/asv and tax assignment (v.534) 
+
+libraries
+```{r}
+library(tidyverse)
+rename <- dplyr::rename
+library(reshape2)
+```
+
+load sample metadata
+```{r}
+metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/metadata_tissue_mock_bt22.csv") %>%
+  rename(Sample_ID = sample_ID)
+```
+
+load decontaminated reads 
+```{r}
+asv_table <- read.csv("/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv") %>%
+  select(!X) %>%
+  filter(!sample_type == "tissue") %>%
+  filter(!sample_type == "mock") %>%
+  filter(Sample_ID != "NC") %>%
+  filter(Sample_ID != "PC") %>%
+  filter(Sample_ID != "NTC") %>%  ### these were all controls associated with tissue or mock amplification 
+  #select(!sample_type) %>% 
+  filter(reads > 0)
+```
+
+convert asv table to taxon table
+```{r}
+taxonomy <- tax <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20250117.csv") %>% 
+  select(!X) %>%
+  select(qseqid, taxon) %>%
+  unique() %>%
+  rename(ASV = qseqid) 
+
+taxon_table <- asv_table %>%
+  left_join(taxonomy, by="ASV") %>%
+  group_by(Sample_ID, sample_type, taxon) %>%
+  summarize(tot_reads = sum(reads)) %>%
+  filter(tot_reads > 0) 
+```
+
+
+let me see what the aquarium samples look like 
+```{r}
+tank_fig1 <- taxon_table %>%
+  filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+tank_fig1
+
+tank_table <- taxon_table %>%
+  filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample)
+```
+
+```{r}
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank1.png", plot = tank_fig1, dpi = 300, width =6, height = 4)
+```
+
+try other ways of plotting 
+```{r}
+# tank_fig2 <- taxon_table %>%
+#   filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+#   group_by(Sample_ID) %>%
+#   mutate(reads_per_sample = sum(tot_reads)) %>%
+#   mutate(prop_reads = tot_reads/reads_per_sample) %>%
+#   ggplot(aes(x=taxon, y=prop_reads, fill=taxon)) +
+#   geom_bar(stat = "identity") + 
+#   theme_bw() +
+#   facet_grid(~Sample_ID) + 
+#   labs(
+#     y = "relative read abundance (%)",
+#     x = "taxon") + 
+#   theme(#axis.text.x = element_blank(),
+#     axis.text.x = element_text(angle = 45, hjust = 0.95),
+#     legend.text = element_text(size = 8),
+#     legend.key.size = unit(0.3, "cm"),
+#     legend.position = "bottom",
+#     legend.title = element_blank() 
+#   )
+# 
+# tank_fig2
+```
+
+```{r}
+#ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank2_new_cpv_assignments.png", plot = tank_fig2, dpi = 300, width = 7, height = 4)
+```
+
+```{r}
+# tank_fig3 <- taxon_table %>%
+#   filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+#   pivot_wider(names_from = "taxon", values_from = "tot_reads", values_fill = 0) %>%
+#   pivot_longer(cols = c(3:13), names_to = "taxon", values_to = "tot_reads") %>%
+#   group_by(Sample_ID) %>%
+#   mutate(reads_per_sample = sum(tot_reads)) %>%
+#   mutate(prop_reads = tot_reads/reads_per_sample) %>%
+#   ungroup() %>%
+#   group_by(taxon) %>%
+#   summarise(mean_prop = mean(prop_reads),
+#             q.25 = quantile(prop_reads, 0.25),
+#             q.75 = quantile(prop_reads, 0.75)) %>%
+#   ggplot(aes(x=taxon, y=mean_prop, color=taxon)) +
+#   geom_point() + 
+#   geom_errorbar(aes(ymin = q.25, ymax = q.75), width = 0.2) + 
+#   theme_bw() +
+#   labs(
+#     y = "relative read abundance (%)",
+#     x = "taxon") + 
+#   theme(#axis.text.x = element_blank(),
+#     axis.text.x = element_text(angle = 45, hjust = 0.95),
+#     legend.text = element_text(size = 8),
+#     legend.key.size = unit(0.3, "cm"),
+#     legend.position = "bottom",
+#     legend.title = element_blank() 
+#   )
+# 
+# tank_fig3
+```
+
+```{r}
+#ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank3_new_cpv_assignments.png", plot = tank_fig3, dpi = 300, width = 6, height = 4)
+```
+
+
+wes said that rougheye (aleutianus), pop, (alutus), china (nebulosus), copper (caurinus), quillback (maliger), black (melanops), widow (entomelas), light dusky (variabilis), and yellowtail (flavidus) were present at time of sampling 
+
+eDNA pick up a lot of melanosticutus (blackspotted)and some proringer (redstripe). other people at the lab believe these species are also in the tank. 
+
+
+make a heatmap table for pres/abs of replicates 
+```{r}
+tank_pres <- tank_table %>%
+  select(Sample_ID, taxon, prop_reads) %>%
+  pivot_wider(names_from = taxon, values_from = prop_reads, values_fill = 0) %>%
+  pivot_longer(cols = !Sample_ID, names_to = "taxon", values_to = "prop_reads") %>%
+  mutate(presence = ifelse(prop_reads > 0, 1, 0)) %>%
+  mutate(Sample_ID = ifelse(Sample_ID == "e01737", "A", Sample_ID), 
+         Sample_ID = ifelse(Sample_ID == "e01738", "B", Sample_ID),
+         Sample_ID = ifelse(Sample_ID == "e01741", "C", Sample_ID))
+
+tank_pres$taxon <- factor(tank_pres$taxon, levels = rev(sort(unique(tank_pres$taxon))))
+
+tank_pres_plot <- ggplot(tank_pres, aes(x = Sample_ID, y = taxon, fill = as.factor(presence))) +
+  geom_tile(color = "white") +
+  scale_fill_manual(values = c("0" = "white", "1" = "grey"), 
+                    name = "", 
+                    labels = c("Absent", "Present")) +
+  theme_minimal() +
+  labs(#title = "taxon Presence Across Replicates",
+       x = "replicate", 
+       y = "taxon") +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1))
+tank_pres_plot 
+```
+
+```{r}
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank4_table.png", plot = tank_pres_plot, dpi = 300, width = 4, height = 4)
+```
+
+
+and a quick look a field samples 
+
+```{r}
+field_table <- taxon_table %>%
+  filter(sample_type == "sample") %>%
+  filter(!Sample_ID %in% c("e01737", "e01738", "e01741")) %>% 
+  filter(tot_reads > 0) %>%
+  group_by(taxon) %>%
+  mutate(total_taxon_reads = sum(tot_reads)) %>%
+  ungroup() %>% 
+  filter(total_taxon_reads > 30) %>%    ## remove taxa with <30 reads total 
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample)
+
+bt_plot1 <- field_table %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(axis.text.x = element_blank(),
+    #axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+bt_plot1
+
+field_table %>%
+  group_by(taxon) %>%
+  summarize(reads = sum(tot_reads)) %>%
+  arrange(desc(reads))
+```
+
+mostly POP and northern in BT field samples. that makes sense!  
+
+let me add in some field metadata about location - join to the full field metadata to not lose the 0 samples 
+```{r}
+field_table_w_meta <- metadata %>%
+  filter(sample_type == "sample") %>%
+  filter(!Sample_ID %in% c("e01737", "e01738", "e01741")) %>% 
+  left_join(field_table, by = "Sample_ID") %>%
+  mutate(prop_reads = ifelse(is.na(prop_reads), 0, prop_reads)) %>%
+  filter(!Sample_ID %in% c("e02339", "e02261_A", "e02298"))
+```
+
+```{r}
+field_table_w_meta$station <- as.numeric(field_table_w_meta$station)
+field_table_w_meta$station <- factor(field_table_w_meta$station, levels = sort(unique(field_table_w_meta$station), decreasing = TRUE))
+
+field_table_w_meta %>%
+  select(station, extraction_ID) %>%
+  unique() %>%
+  group_by(station) %>%
+  summarise(n = n())
+
+my_colors <- c("#f7754f",  "#6e9bf4", "#cc7af4", "#f565cc", "#77ab31")
+
+field_table_w_meta <- field_table_w_meta %>%
+  mutate(taxon_abbr = ifelse(taxon == "Sebastes ciliatus_variabilis_polyspinus", "Sebastes cvp", taxon), 
+         taxon_abbr = ifelse(taxon == "Sebastes ciliatus_variabilis", "Sebastes cv", taxon_abbr))
+
+bt_plot2 <- field_table_w_meta %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon_abbr)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  scale_fill_manual(values = my_colors, na.translate = FALSE) + # Removes NA from the legend
+  facet_grid(~station, scales = "free_x") +
+  labs(
+    y = "relative read abundance (%)",
+    x = "samples by haul") + 
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+    #axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    strip.text = element_blank()  # Removes facet labels
+  )
+  
+bt_plot2
+```
+
+```{r}
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/bt2_w_zeros.png", plot = bt_plot2, dpi = 300, width = 8, height =3)
+```
+
+
+
+check how many eDNA samples were collected at each haul location 
+```{r}
+bt_meta <- metadata %>%
+  filter(sample_type == "sample") %>%
+  filter(!Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+  group_by(station) %>%
+  summarize(count = n())
+
+
+metadata %>%
+  filter(sample_type == "sample") %>%
+  filter(!Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
+  select(station, depth) %>%
+  unique()
+```
+
+
+
+
+how does this compare to trawl catch? 
+
+load Alaska Groundfish Survey catch and haul report for fish from the 2022 Aleutian Island BT survey: https://www.fisheries.noaa.gov/foss/f?p=215:28:51549328646:::::
+```{r}
+bt_catch <- read.csv("/home/kimberly.ledger/BT2021_metabarcoding/data/2022_AI_BT_Teleostei_CATCH_AND_HAUL_DATA_TAXON.csv") %>%
+  filter(Vessel.name == "OCEAN EXPLORER") %>%
+  filter(Haul.number %in% field_table_w_meta$station)
+```
+
+metadata from bt hauls w/ eDNA samples
+```{r}
+bt_catch %>%
+  select(Survey.year:Surface.temperature..degrees.Celsius.) %>%
+  unique() %>%  
+  select(Stratum.ID, Station.ID, Haul.ID, Haul.number, Date.time:Surface.temperature..degrees.Celsius.) %>%  ## just the columns that vary
+  select(Haul.number, Depth..m.)
+```
+
+good, this matches the metadata i have from the eDNA samples. 
+
+```{r}
+bt_catch %>%
+  select(Haul.number, Taxon.common.name:Taxon.confidence.rating) %>%
+  arrange(Haul.number)
+```
+
+```{r}
+bt_sebastes <- bt_catch %>%
+  select(Haul.number, Taxon.common.name:Taxon.confidence.rating) %>%
+  arrange(Haul.number) %>%
+  filter(str_detect(Taxon.scientific.name, "Sebastes"))
+```
+
+only northerns and one pop in hauls associated with eDNA samples 
+
+how about what sebastes taxon were caught in the entire 2022 AI bottom trawl survey? 
+```{r}
+seb_in_bt <- read.csv("/home/kimberly.ledger/BT2021_metabarcoding/data/2022_AI_BT_Teleostei_CATCH_AND_HAUL_DATA_TAXON.csv") %>%
+  filter(Vessel.name == "OCEAN EXPLORER") %>% 
+  filter(str_detect(Taxon.scientific.name, "Sebastes"))
+
+unique(seb_in_bt$Taxon.scientific.name)
+```
+
+```{r}
+seb_in_bt %>%
+  group_by(Taxon.scientific.name) %>%
+  summarize(tot_wt_CPUE = sum(Weight.CPUE..kg.km2.),
+            tot_n_CPUE = sum(Number.CPUE..no.km2.)) %>%
+  arrange(desc(tot_wt_CPUE))
+
+seb_in_bt %>% select(Haul.number) %>% unique()
+```
+
+try making a map of these trawl locations
+```{r}
+library(akgfmaps)
+browseVignettes('akgfmaps')
+
+?make_idw_map
+?get_base_layers
+
+ai.central <- get_base_layers(select.region = "ai.central", set.crs = 3338)
+
+ai.central_plot <- ggplot() +
+  #geom_sf(data = ai.central$bathymetry) +
+  geom_sf(data = ai.central$survey.area) +
+  geom_sf(data = ai.central$akland, fill = "grey70") +
+  coord_sf(xlim = ai.central$plot.boundary$x,
+           ylim = ai.central$plot.boundary$y) +
+  theme_bw()
+ai.central_plot
+
+ai <- get_base_layers(select.region = "ai", set.crs = 3338)
+
+ai_plot <- ggplot() +
+  #geom_sf(data = ai$bathymetry) +
+  geom_sf(data = ai$survey.area) +
+  geom_sf(data = ai$akland, fill = "grey70") +
+  coord_sf(xlim = ai$plot.boundary$x,
+           ylim = ai$plot.boundary$y) +
+  theme_bw()
+ai_plot
+```
+
+```{r}
+#sites_2 <- field_table_w_meta %>%
+#  ungroup() %>%
+#  select(station, longitude, latitude, depth) %>%
+#  unique()
+
+sites <- bt_catch %>%
+  rename(latitude = Start.latitude..decimal.degrees.) %>%
+  rename(longitude = Start.longitude..decimal.degrees.) %>%
+  select(Haul.number, longitude, latitude) %>%
+  unique()
+
+# Step 1: Convert to sf object (default CRS is WGS84, EPSG:4326)
+sites_sf <- st_as_sf(sites, coords = c("longitude", "latitude"), crs = 4326)
+
+# Step 2: Transform to Alaska Albers Equal Area (EPSG:3338)
+sites_sf_3338 <- st_transform(sites_sf, crs = 3338)
+
+# Print the resulting spatial object
+print(sites_sf_3338)
+
+# Optional: Plot the points on a map
+library(ggplot2)
+ggplot() +
+  geom_sf(data = sites_sf_3338) +
+  theme_minimal() +
+  ggtitle("Points in Alaska Albers Equal Area Projection (EPSG:3338)")
+```
+
+```{r}
+ai_plot <- ggplot() +
+  #geom_sf(data = ai$bathymetry) +
+  geom_sf(data = ai$survey.area) +
+  geom_sf(data = ai$akland, fill = "grey70") +
+  geom_sf(data = sites_sf_3338) +
+  coord_sf(xlim = ai$plot.boundary$x,
+           ylim = ai$plot.boundary$y) +
+  theme_bw()
+ai_plot
+```
+
+
+
+```{r}
+taxon_table %>%
+  filter(sample_type %in% c("extraction_blank", "field_blank", "pcr_blank", "positive")) %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(tot_reads)) %>%
+  mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  #filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=tot_reads, fill=taxon)) +
+  #ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~sample_type, scales = "free_x") + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+i flipped the label for the NC/PC samples (and they were POP) 
+i used gopher rf for PC22_A 
+
+```{r}
+asv_table_with_sample_type %>%
+  filter(Sample_ID == "PC22_A") %>%
+  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
+  filter(reads > 0)
+```
+

@@ -1,0 +1,52 @@
+---
+title: "other things"
+output: html_document
+date: "2025-01-21"
+---
+
+libraries 
+```{r}
+library(tidyverse)
+```
+
+```{r}
+differences <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_534_matrix.csv") %>%
+  rename(Name = X) %>%
+  pivot_longer(cols = c(2:534), names_to = "X2", values_to = "PercDiff") %>%
+  filter(!is.na(PercDiff)) %>%
+  mutate(X2 = gsub("\\.", " ", X2))
+
+id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_534_matrix_metadata.csv")
+
+differences <- differences %>%
+  left_join(id, by = "Name") %>%
+  rename(Org1 = Organism) %>%
+  select(Org1, X2, PercDiff) %>%
+  rename(Name = X2) %>%
+  left_join(id, by = "Name") %>%
+  rename(Org2 = Organism) %>%
+  select(Org1, Org2, PercDiff)
+
+differences %>%
+  filter(Org1 != Org2) %>%
+  summarise(min = min(PercDiff),
+            q.025 = quantile(PercDiff,probs=0.025),
+            mean = mean(PercDiff),
+            q.975 = quantile(PercDiff,probs=0.975),
+            max = max(PercDiff))
+
+differences %>%
+  filter(Org1 == Org2) %>%
+  summarise(min = min(PercDiff),
+            q.025 = quantile(PercDiff,probs=0.025),
+            mean = mean(PercDiff),
+            q.975 = quantile(PercDiff,probs=0.975),
+            max = max(PercDiff))
+``` 
+
+```{r}
+differences %>%
+  filter(Org1 != Org2) %>%
+  filter(PercDiff == 0)
+```
+

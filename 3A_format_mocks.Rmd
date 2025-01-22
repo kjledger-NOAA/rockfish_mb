@@ -1,0 +1,392 @@
+---
+title: "formatting mock com data"
+output: html_document
+date: "2024-12-27"
+---
+
+load libraries 
+```{r, message=FALSE}
+library(tidyverse)
+library(dplyr)
+rename <- dplyr::rename
+```
+
+
+load sample metadata
+```{r}
+metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/metadata_tissue_mock_bt22.csv") %>%
+  rename(Sample_ID = sample_ID)
+```
+
+load decontaminated reads 
+```{r}
+decontaminated_table <- read.csv("/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv") %>%
+  select(!X) %>%
+  filter(sample_type == "mock") %>%
+  select(!sample_type) %>%
+  filter(reads > 0)
+```
+
+load mock community input 
+```{r}
+mock_expected <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_mock.csv") %>%
+  filter(species != "Sebastes ruberrimus") %>%
+  mutate(replicate = "expected") %>%
+  group_by(Community_ID) %>%
+  mutate(start_conc_ng = uL * conc_ng_uL,
+         community_total_conc = sum(start_conc_ng),
+         Perc_Community = start_conc_ng/community_total_conc)
+```
+
+assign asv's to taxons 
+```{r}
+taxonomy <- tax <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20250117.csv") %>% 
+  select(!X) %>%
+  select(qseqid, taxon) %>%
+  unique() %>%
+  rename(ASV = qseqid) 
+
+mock_taxons <- decontaminated_table %>%
+  left_join(taxonomy, by = "ASV") 
+```
+
+
+take a closer look at what asv's make up the taxons
+```{r}
+mock_taxons %>%
+  group_by(taxon) %>%
+  mutate(taxon_reads = sum(reads)) %>%
+  group_by(ASV, taxon, taxon_reads) %>%
+  summarize(tot_reads = sum(reads)) %>%
+  mutate(prop_asv = tot_reads/taxon_reads) %>%
+  ggplot(aes(x=taxon, y=prop_asv, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  #facet_grid(~Community_ID, scales = 'free') +
+  theme_bw() +
+  labs(
+    y = "proportion of sequencing reads",
+    x = "taxon",
+    title = "") + 
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "right",
+    legend.title = element_blank()
+  )
+```
+
+
+remove very rare ASVs 
+```{r}
+readcount_asvs <- mock_taxons %>%
+  group_by(ASV) %>%
+  summarise(total_reads = sum(reads))  %>%
+  arrange(total_reads) %>%
+  left_join(taxonomy, by = "ASV")
+
+to_remove <- readcount_asvs %>%
+  filter(total_reads < 10)
+
+mock_taxons <- mock_taxons %>%
+  filter(!ASV %in% to_remove$ASV)
+```
+
+note - i used unique haplotypes of dark and dusky for the mock communities so they could be differentiated (ASV27 is ciliatus and ASV26 is variabilis)
+
+reformat and join the mock reads with expected mock values - for now using the v.534 version of tax assignment
+```{r}
+mock_table <- mock_taxons %>%
+  filter(taxon != "Sebastes reedi") %>%
+  mutate(taxon = ifelse(ASV == "ASV_027", "Sebastes ciliatus", taxon),
+         taxon = ifelse(ASV == "ASV_026", "Sebastes variabilis", taxon)) %>%
+  mutate(taxon = ifelse(taxon == "Sebastes ev", "Sebastes variegatus", taxon)) %>%
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  group_by(Sample_ID, community, replicate, taxon) %>%
+  summarize(reads = sum(reads)) %>%
+  ungroup() %>%
+  group_by(Sample_ID, community, replicate) %>%
+  mutate(community_reads = sum(reads)) %>%
+  mutate(Perc_Community = reads/community_reads)
+```
+
+export the mock community data in the format needed for quantitative metabarcoding models
+```{r}
+mock_start <- mock_expected %>%
+  select(Community_ID, species, start_conc_ng) %>%
+  rename(community = Community_ID) %>%
+  rename(taxon = species)
+
+mock_export <- mock_table %>%
+  mutate(community = ifelse(community == "ns_even", "nearshore_even", community),
+         community = ifelse(community == "os_even", "offshore_even", community),
+         community = ifelse(community == "os_skew", "offshore_skew", community)) %>%
+  select(community, replicate, taxon, reads) %>%
+  rename(tech_rep = replicate) %>%
+  rename(nReads = reads) %>%
+  mutate(Cycles = 35) %>%
+  left_join(mock_start) %>%
+  mutate(start_conc_ng = ifelse(is.na(start_conc_ng), 0, start_conc_ng))
+
+write.csv(mock_export, "/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20250117.csv", row.names = F)
+```
+
+
+
+## the rest are just some exploratory plots 
+```{r}
+mock_table %>%
+  ggplot(aes(x=Sample_ID, y=Perc_Community, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+let me see what the mock community samples look like 
+```{r}
+all_even <- mock_taxons_534 %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "all_even") %>%
+  filter(reads > 0) 
+
+all_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  #filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+all_even <- all_even %>%
+  left_join(taxonomy_534, by = "ASV")
+
+all_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  #filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+
+
+```{r}
+ns_even <- mock_taxons_534  %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "ns_even") %>%
+  filter(reads > 0) 
+
+ns_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  #filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+ns_even <- ns_even %>%
+  left_join(taxonomy_534, by = "ASV")
+
+ns_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  #filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+- S. aleutianus and S. alutus and S. polyspinis and S. zacentrus is probably a bit of tag jumping 
+- maliger and melanops and pinniger and nebulosus, and nigrocinctus pres looks okay (though proportions are quite skewed)
+- ruberrimus is missing (tissue seqs for this were wacky) - they assigned to babcocki and pinniger. 
+
+now let's check offshore_even 
+
+```{r}
+os_even <- mock_taxons_534 %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "os_even") %>%
+  filter(reads > 0) 
+
+os_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+os_even <- os_even %>%
+  left_join(taxonomy_534, by = "ASV")
+
+os_even %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  #filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+```
+
+now let's check offshore_skew 
+
+```{r}
+os_skew <- mocks %>% 
+  separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
+  unite(community, p1, p2, sep = "_") %>%
+  filter(community == "os_skew") %>%
+  filter(reads > 0) 
+
+os_skew %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=ASV)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+join tax assignments 
+```{r}
+os_skew <- os_skew %>%
+  left_join(tax, by = "ASV")
+
+os_skew %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  facet_wrap(~community, scales = "free_x", nrow = 3) + 
+  labs(
+    y = "relative read abundance (%)",
+    x = "sample_id") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+os_skew_table <- os_skew %>%
+  group_by(Sample_ID) %>%
+  mutate(reads_per_sample = sum(reads)) %>%
+  mutate(prop_reads = reads/reads_per_sample) %>%
+  filter(reads_per_sample > 100) %>%
+  ungroup() %>%
+  select(community, replicate, sample_type, ASV, taxon, prop_reads) %>%
+  pivot_wider(names_from = "replicate", values_from = "prop_reads") %>%
+  arrange(taxon)
+```
+

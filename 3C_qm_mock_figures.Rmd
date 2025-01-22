@@ -1,0 +1,206 @@
+---
+title: "quantitative metabarcoding figures for rockfish mock communities"
+author: "Kimberly Ledger"
+date: "2024-12-27"
+output: html_document
+---
+
+load libraries
+```{r}
+library(tidyverse)
+library(data.table)
+library(gridExtra)
+library(ggsci)
+```
+
+# Read in the posteriors for mock communities
+```{r}
+#load("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/raw_20241227_nearshoreeven.Rdata")
+#raw <- Output
+
+load("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mock_20250117_allmocks.Rdata")
+mock1 <- Output
+```
+
+```{r}
+#########################################################
+# Mock1
+#########################################################
+# summarize raw estimates from reads for each species.
+mock1.raw <- mock1$env %>% group_by(community,Cycles,tech_rep) %>%
+      mutate(sum.ng = sum(start_conc_ng),
+             true.prop = start_conc_ng / sum.ng) %>%
+      ungroup() %>%
+      group_by(Species,community,Cycles,true.prop) %>%
+  summarize(simple.Mean=mean(propReads),
+            simple.N = length(tech_rep)) %>%
+  replace_na(list(raw.Mean=0,raw.SD=0,raw.SE=0))
+
+# extract predicted proportions from the posterior
+COM <- data.frame(community = levels(mock1$env$community %>% as.factor()))
+COM$comm_idx <- 1:nrow(COM)
+SP  <- mock1$env %>% distinct(Species,sp_idx) %>% as.data.frame()
+
+# These are the predicted intercepts for the posteriors
+beta_posterior <- mock1$stanMod_summary[["int_samp_small"]][, c(1,4:8)]
+colnames(beta_posterior) <- paste0("mock1.",substr(colnames(beta_posterior),1,nchar(colnames(beta_posterior))-1))
+colnames(beta_posterior)[1] <- "mock1.mean"
+beta_posterior <- as.data.frame(beta_posterior)
+
+mock1.post <-expand.grid(comm_idx = COM$comm_idx,sp_idx =SP$sp_idx) %>% 
+    arrange(comm_idx,sp_idx) %>% 
+    left_join(.,COM) %>% 
+    left_join(.,SP) %>% 
+    bind_cols(.,beta_posterior)
+
+# Combine the raw estimates and posterior estimates
+mock1.all <- full_join(mock1.raw,mock1.post)
+```
+
+```{r}
+###############################################################333
+#### Pull out estimates of alpha, convert to CLR                        
+###############################################################333
+
+p_space_mock1 <- (exp(mock1$pars$alpha) / rowSums(exp(mock1$pars$alpha))) %>% as.data.frame()
+
+clr_alpha_list_mock <- compositions::clr(p_space_mock1)
+
+clr_alpha <- clr_alpha_list_mock %>% as.data.frame()
+
+mock.taxon   <- data.frame(Species=mock1.post %>% distinct(Species) %>% pull(Species))
+
+colnames(clr_alpha) <- mock.taxon$Species                       
+
+clr_alpha_sum <- clr_alpha %>% 
+                    pivot_longer( .,
+                          cols = colnames(clr_alpha),
+                          names_to="Species",values_to="val") %>%
+                    group_by(Species) %>%
+                    summarize(Mean = mean(val),
+                        SD=sd(val),
+                        q.025 = quantile(val,probs=0.025),
+                        q.05 = quantile(val,probs=0.05),
+                        q.25 = quantile(val,probs=0.25),
+                        q.75 = quantile(val,probs=0.75),
+                        q.95 = quantile(val,probs=0.95),
+                        q.975 = quantile(val,probs=0.975))    
+
+clr_alpha_sum <- clr_alpha_sum %>% arrange(Mean)
+
+# get rid of reference taxonecies denotion
+clr_alpha_sum <- clr_alpha_sum %>%
+                      mutate(SP= ifelse(grepl("zRefSpecies_",Species),
+                                       substr(Species,13,nchar(Species)),
+                                       as.character(Species)))
+
+clr_alpha_sum$SP <- as.factor(clr_alpha_sum$SP)
+
+species_colors <- c(
+  "#77ab31", "#f77189", "#6e9bf4", "#f45cf2", "#ae9d31", "#cc7af4", 
+  "#31b33e", "#f565cc", "#36ada4", "#97a431", "#f7754f",#"#38a9c5", 
+  "#35ae93", "#c39532", "#3aa5df", "#a48cf4", "#f66bad",  "#dc8932", "#33b07a" #"#37abb4", 
+)
+
+#clr_alpha_sum$taxon <- factor(clr_alpha_sum$taxon, levels = rev(unique(clr_alpha_sum$taxon)))
+clr_alpha_sum$SP <- factor(clr_alpha_sum$SP, levels = rev(clr_alpha_sum$SP[order(clr_alpha_sum$Mean)]))
+
+p_clr <-  ggplot(clr_alpha_sum) +
+    geom_errorbarh(aes(xmin=q.25,xmax=q.75,y=SP),size=2,height=0) +
+    geom_errorbarh(aes(xmin=q.025,xmax=q.975,y=SP),size=0.8,height=0) +
+    geom_point(aes(x=Mean,y=SP,fill=SP),size=3,shape=21) +
+    geom_vline(xintercept=0,linetype="dashed") +
+    scale_fill_manual(values=species_colors) +
+    scale_x_continuous("Amplification Efficiency (CLR)") +
+    scale_y_discrete(NULL) + #, limits = rev(levels(clr_alpha_sum$taxon))) +
+    theme_bw() +
+    theme(legend.position = "none",
+          legend.text = element_text(size = 8),
+          axis.text.y = element_text(size=10))
+
+p_clr
+```
+
+
+```{r}
+ggsave(p_clr, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/allmocks_clr_ordered.png", width = 8, height = 5, units = "in")
+```
+
+
+make a plot for publication using  - all_even community expects & observed proportions 
+
+```{r}
+mockcom_data <- read.csv("/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20250117.csv") %>%
+  group_by(community, tech_rep) %>%
+  mutate(community_total_conc = sum(start_conc_ng),
+         Perc_Community = start_conc_ng/community_total_conc)
+
+library(ggsci)
+
+df1 <- mockcom_data %>%
+  filter(community == "all_even") %>%
+  group_by(tech_rep) %>%
+  mutate(total_reads = sum(nReads)) %>%
+  mutate(prop_reads = nReads/total_reads) %>%
+  ungroup() %>%
+  group_by(taxon) %>%
+  summarise(proportion = mean(prop_reads)) %>%
+  mutate(status = "observed")
+
+df2 <- mockcom_data %>%
+  ungroup() %>%
+  filter(community == "all_even") %>%
+  filter(tech_rep == "A") %>%
+  select(taxon, Perc_Community) %>%
+  mutate(status = "initial") %>%
+  rename(proportion = Perc_Community)
+
+df_mock <- df1 %>%
+  bind_rows(df2)
+
+species_colors <- c(
+  "#77ab31", "#f77189", "#6e9bf4", "#f45cf2", "#ae9d31", "#cc7af4", 
+  "#31b33e", "#f565cc", "#36ada4", "#97a431", "#f7754f",#"#38a9c5", 
+  "#35ae93", "#c39532", "#3aa5df", "#a48cf4", "#f66bad",  "#dc8932", "#33b07a" #"#37abb4", 
+)
+
+df_mock$taxon <- as.factor(df_mock$taxon)
+
+df_mock$taxon <- factor(df_mock$taxon, levels = clr_alpha_sum$SP)
+
+alle <- df_mock %>%
+  ggplot(aes(x=status, y=proportion, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  scale_fill_manual(values = rev(species_colors)) +
+  labs(
+    y = "proportion",
+    x = "") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "right",
+    legend.title = element_blank()
+  )
+
+alle
+```
+
+```{r}
+ggsave(alle, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/alleven_initial_v_observed_ordered.png", width = 8, height = 5, units = "in")
+```
+
+
+```{r}
+library(patchwork)
+
+mock_plot <- alle + p_clr + plot_annotation(tag_levels = "A")
+mock_plot
+```
+
+
+
+```{r}
+ggsave(mock_plot, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/mock_fig_ordered.png", width = 10, height = 4, units = "in")
+```

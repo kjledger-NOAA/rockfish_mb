@@ -1,0 +1,367 @@
+---
+title: "using custom rockfish database to assign ASVs to taxa"
+author: "Kimberly Ledger"
+date: "2024-11-06"
+output: html_document
+---
+
+```{r load-libraries}
+library(tidyverse)
+rename <- dplyr::rename
+```
+
+input blastn results from custom rockfish database
+```{r}
+#rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_tissue_mock_bt22_db536.txt")  %>%
+#rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_tissue_mock_bt22_db534.txt")  %>%
+rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_tissue_mock_bt22_534_20250117.txt")  %>%
+    filter(V4 > 100) %>% # make sure all retained matches are >100 bp
+  select(-V5, -V6, -V7, -V8, -V9, -V10, -V11, -V12, -V13, -V14) %>%  #remove unnecessary columns
+  group_by(V1, V2) %>% # group by the sequence key and the full taxonomy to reduce duplicate entries
+  unique() %>% # doing that reduced the number of entries
+  rename(qseqid=V1, accession_id=V2, perc_id=V3, length=V4) #%>% #rename headers
+  #filter(perc_id > 98)
+```
+
+load the id's of accessions
+```{r}
+#id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rkfish_ref_dbs/rockfish_reference_db_536.csv") %>%
+#id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rkfish_ref_dbs/rockfish_reference_db_534.csv") %>%
+id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rkfish_ref_dbs/rockfish_reference_db_534_20250117.csv") %>%
+  rename(accession_id = Name)
+
+id %>% select(Organism) %>% unique()
+```
+
+join 
+```{r}
+rock_id <- rock %>%
+  left_join(id) %>%
+  rename(species = Organism)
+```
+
+## rank the hits by % identity
+```{r}
+seq_id_diff <- rock_id %>%
+  select(-length) %>%
+  group_by(qseqid, species) %>%
+    mutate(seq_percID = max(perc_id)) %>%
+    group_by(qseqid, species, seq_percID) %>%
+  summarise(max(seq_percID)) %>% # take just the top hit for each taxon (for each sequence)
+  select(-`max(seq_percID)`) %>%
+  ungroup() %>%
+  group_by(qseqid) %>%
+      #mutate(id_rank = rank(desc(seq_percID), ties.method = "min")) %>% # rank the taxonomic hits per sequence by % id
+       mutate(top_perc = max(seq_percID)) %>% # designate the highest % id for the best taxonomic hit in each sequence (in some, but not all cases, this is 100%)   %>%
+      mutate(diff = top_perc - seq_percID) %>% # calculate the difference between the % identity of the top hit and each subsequent taxonomic hit
+      arrange(diff)
+
+seq_id_diff
+```
+
+
+since there are very few bp difference among species, let's go with species within 0.5% of the top match and top match must be at least 95% 
+```{r}
+keepers <- seq_id_diff %>%
+  filter(diff < 0.5) %>%   #the 0.5% threshold essentially is requiring a 100% match 
+  filter(top_perc > 95)
+```
+
+
+## so now determine whether ASVs should be assigned to genus, family, order, etc. 
+```{r}
+singletons <- keepers %>%
+  select(qseqid) %>%
+  tally() %>%
+  filter(n == 1)
+
+# these are the seqs that now have only a single match
+singleton_df <- singletons %>%
+  left_join(keepers) %>%
+  select(-n) %>%
+  mutate(taxonomic_level = "species") %>%
+  mutate(taxon = species) #%>%
+  #select(qseqid, taxon, taxonomic_level)
+
+## Genus-level matches
+# remove the singletons from the bigger df 
+single_genus <- keepers %>%
+  anti_join(singleton_df)%>% # at best, these should be genus-level matches
+  left_join(., keepers) %>%
+  arrange(qseqid) %>%
+  mutate(taxonomic_level = "genus") %>%
+  mutate(taxon = "Sebastes") #%>%
+  #select(qseqid, taxon, taxonomic_level) %>%
+  #unique
+```
+
+change non-species level ASV assignments so that it represents the species it makes up. 
+- Sebastes_ev = Sebastes emphaeus or Sebastes variegatus
+- Sebastes_pv  = 	Sebastes polyspinis or Sebastes variabilis
+- etc.... 
+
+```{r}
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes ciliatus") & any(species == "Sebastes ciliatus_variabilis") ~ "Sebastes ciliatus_variabilis",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes variabilis") & any(species == "Sebastes ciliatus_variabilis") ~ "Sebastes ciliatus_variabilis",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes variegatus") & any(species == "Sebastes wilsoni") ~ "Sebastes vw",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes emphaeus") & any(species == "Sebastes variegatus") ~ "Sebastes ev",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes diaconus") & any(species == "Sebastes entomelas") ~ "Sebastes de",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+single_genus <- single_genus %>%
+  group_by(qseqid) %>%
+  mutate(taxon = case_when(
+    any(species == "Sebastes polyspinis") & any(species == "Sebastes ciliatus_variabilis") ~ "Sebastes ciliatus_variabilis_polyspinus",
+    TRUE ~ taxon
+  )) %>%
+  ungroup()
+
+# single_genus <- single_genus %>%
+#   group_by(qseqid) %>%
+#   mutate(taxon = case_when(
+#     any(species == "Sebastes reedi") & any(species == "Sebastes crameri") ~ "Sebastes rc",
+#     TRUE ~ taxon
+#   )) %>%
+#   ungroup()
+# 
+# single_genus <- single_genus %>%
+#   group_by(qseqid) %>%
+#   mutate(taxon = case_when(
+#     any(species == "Sebastes entomelas") & any(species == "Sebastes mystinus") ~ "Sebastes em",
+#     TRUE ~ taxon
+#   )) %>%
+#   ungroup()
+# 
+# single_genus <- single_genus %>%
+#   group_by(qseqid) %>%
+#   mutate(taxon = case_when(
+#     any(species == "Sebastes crocotulus") & any(species == "Sebastes miniatus") ~ "Sebastes cm",
+#     TRUE ~ taxon
+#   )) %>%
+#   ungroup()
+# 
+# single_genus <- single_genus %>%
+#   group_by(qseqid) %>%
+#   mutate(taxon = case_when(
+#     any(species == "Sebastes ciliatus") & any(species == "Sebastes polyspinis") ~ "Sebastes cp",
+#     TRUE ~ taxon
+#   )) %>%
+#   ungroup()
+# 
+# 
+# 
+# single_genus <- single_genus %>%
+#   group_by(qseqid) %>%
+#   mutate(taxon = case_when(
+#     any(species == "Sebastes chlorostictus") & any(species == "Sebastes rosenblatti") ~ "Sebastes cr",
+#     TRUE ~ taxon
+#   )) %>%
+#   ungroup()
+# 
+# single_genus <- single_genus %>%
+#   group_by(qseqid) %>%
+#   mutate(taxon = case_when(
+#     any(species == "Sebastes variegatus") & any(species == "Sebastes wilsoni") & any(species == "Sebastes zacentrus") ~ "Sebastes vwz",
+#     TRUE ~ taxon
+#   )) %>%
+#   ungroup()
+# 
+# single_genus <- single_genus %>%
+#   group_by(qseqid) %>%
+#   mutate(taxon = case_when(
+#     any(species == "Sebastes ciliatus") & any(species == "Sebastes polyspinis") & any(species == "Sebastes variabilis")  ~ "Sebastes cpv",
+#     TRUE ~ taxon
+#   )) %>%
+#   ungroup()
+```
+
+```{r}
+rockfish_df <- singleton_df %>%
+  bind_rows(single_genus)
+```
+
+```{r}
+rockfish_df_collapsed <- rockfish_df  %>%
+   select(qseqid, taxon) %>%
+   unique()
+```
+
+```{r}
+#write.csv(rockfish_df_collapsed, "/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20250117.csv")
+```
+
+
+
+#### an older aside that just looked at assignment of dusky, dark, and northern 
+
+just looking at the dark, northern, and dusky reference db results 
+
+first figure out which asv's got id'd to one of these species in the original assignment 
+```{r}
+cpv_asvs <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20250107.csv") %>%
+  select(!X) %>%
+  filter(taxon %in% c("Sebastes ciliatus", "Sebastes polyspinis", "Sebastes variabilis"))
+```
+
+
+input blastn results from custom rockfish database
+```{r}
+#rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_tissue_mock_bt22_db536.txt")  %>%
+rock <- read.table("/home/kimberly.ledger/rockfish_mb/data/blastn_tissue_mock_bt22_cpv.txt")  %>%
+    filter(V4 > 100) %>% # make sure all retained matches are >100 bp
+  select(-V5, -V6, -V7, -V8, -V9, -V10, -V11, -V12, -V13, -V14) %>%  #remove unnecessary columns
+  group_by(V1, V2) %>% # group by the sequence key and the full taxonomy to reduce duplicate entries
+  unique() %>% # doing that reduced the number of entries
+  rename(qseqid=V1, accession_id=V2, perc_id=V3, length=V4) #%>% #rename headers
+  #filter(perc_id > 98)
+```
+
+load the id's of accessions
+```{r}
+#id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rkfish_ref_dbs/rockfish_reference_db_536.csv") %>%
+id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rkfish_ref_dbs/cpv_minidloop_representative_haplotypes.csv") %>%
+  rename(accession_id = Name)
+
+id %>% select(Organism) %>% unique()
+```
+
+
+
+join 
+```{r}
+rock_id <- rock %>%
+  left_join(id) %>%
+  rename(species = Organism)
+```
+
+## rank the hits by % identity
+```{r}
+seq_id_diff <- rock_id %>%
+  select(-length) %>%
+  group_by(qseqid, accession_id) %>%
+    mutate(seq_percID = max(perc_id)) %>%
+    group_by(qseqid, accession_id, seq_percID) %>%
+  summarise(max(seq_percID)) %>% # take just the top hit for each taxon (for each sequence)
+  select(-`max(seq_percID)`) %>%
+  ungroup() %>%
+  group_by(qseqid) %>%
+      #mutate(id_rank = rank(desc(seq_percID), ties.method = "min")) %>% # rank the taxonomic hits per sequence by % id
+       mutate(top_perc = max(seq_percID)) %>% # designate the highest % id for the best taxonomic hit in each sequence (in some, but not all cases, this is 100%)   %>%
+      mutate(diff = top_perc - seq_percID) %>% # calculate the difference between the % identity of the top hit and each subsequent taxonomic hit
+      arrange(diff)
+
+seq_id_diff
+```
+
+
+since there are very few bp difference among species, let's go with species within 0.5% of the top match and top match must be at least 95% 
+```{r}
+keepers <- seq_id_diff %>%
+  filter(diff < 0.5) %>%   #the 0.5% threshold essentially is requiring a 100% match 
+  filter(top_perc > 95)
+```
+
+how do these keeps match the orginal assignments 
+
+```{r}
+temp <- keepers %>%
+  left_join(cpv_asvs)
+```
+
+okay, based on this i'll only keep the 98% matches or better 
+```{r}
+keepers <- keepers %>%
+  filter(top_perc > 98)
+```
+
+so haps 1, and 7 thru 12 are likely polyspinis
+and haps 2-6 are a toss up between ciliatus and variabilis 
+
+```{r}
+keepers_w_id <- keepers %>%
+  separate(accession_id, into = c("hap")) %>%
+  mutate(taxon = ifelse(hap == "hap2", "Sebastes polyspinis", NA),
+         taxon = ifelse(hap == "hap3", "Sebastes polyspinis", taxon),
+         taxon = ifelse(hap == "hap4", "Sebastes polyspinis", taxon),
+         taxon = ifelse(hap == "hap5", "Sebastes polyspinis", taxon),
+         taxon = ifelse(hap == "hap6", "Sebastes polyspinis", taxon),
+         taxon = ifelse(hap == "hap1", "Sebastes ciliatus/variabilis", taxon),
+         taxon = ifelse(hap == "hap7", "Sebastes ciliatus/variabilis", taxon),
+         taxon = ifelse(hap == "hap8", "Sebastes ciliatus/variabilis", taxon),
+         taxon = ifelse(hap == "hap9", "Sebastes ciliatus/variabilis", taxon),
+         taxon = ifelse(hap == "hap10", "Sebastes ciliatus/variabilis", taxon),
+         taxon = ifelse(hap == "hap11", "Sebastes ciliatus/variabilis", taxon),
+         taxon = ifelse(hap == "hap12", "Sebastes ciliatus/variabilis", taxon))
+```
+
+
+## so now determine whether ASVs should be assigned to genus, family, order, etc. 
+```{r}
+singletons <- keepers_w_id %>%
+  select(qseqid) %>%
+  tally() %>%
+  filter(n == 1)
+
+# these are the seqs that now have only a single match
+singleton_df <- singletons %>%
+  left_join(keepers_w_id) %>%
+  select(-n)
+
+## Genus-level matches
+# remove the singletons from the bigger df 
+not_singleton <- keepers_w_id %>%
+  anti_join(singleton_df)%>% # at best, these should be genus-level matches
+  left_join(., keepers_w_id) %>%
+  arrange(qseqid) 
+```
+only ASV 199 is stuck between the northerns and dusky/dark groups - for simpicity for now i will call them northern 
+
+```{r}
+not_singleton <- not_singleton %>%
+  filter(taxon != "Sebastes ciliatus/variabilis") %>%
+  select(!hap) %>%
+  unique()
+```
+
+```{r}
+cpv_df <- singleton_df %>%
+  bind_rows(not_singleton)
+```
+
+
+```{r}
+write.csv(cpv_df, "/home/kimberly.ledger/rockfish_mb/data/taxonomy_cpv_only.csv")
+```
