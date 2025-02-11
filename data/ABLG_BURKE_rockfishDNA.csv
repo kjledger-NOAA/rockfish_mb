@@ -38,6 +38,7 @@ ABLG_4601,dusky,Sebastes variabilis
 ABLG_10058,dark,Sebastes ciliatus
 ABLG_12278,dusky,Sebastes variabilis
 ABLG_9486,northern,Sebastes polyspinis
+ABLG9486,northern,Sebastes polyspinis
 ABLG_9601,northern,Sebastes polyspinis
 ABLG_9545,northern,Sebastes polyspinis
 ABLG_9565,northern,Sebastes polyspinis
@@ -51,6 +52,7 @@ ABLG_663,pacific ocean perch,Sebastes alutus
 ABLG_674,pacific ocean perch,Sebastes alutus
 ABLG_660,pacific ocean perch,Sebastes alutus
 ABLG_8566,pacific ocean perch,Sebastes alutus
+ABLG8566,pacific ocean perch,Sebastes alutus
 ABLG_11698,quillback,Sebastes maliger
 ABLG_12537,quillback,Sebastes maliger
 ABLG_12320,quillback,Sebastes maliger
@@ -60,6 +62,7 @@ ABLG_19352,quillback,Sebastes maliger
 ABLG_4657,rougheye,Sebastes aleutianus
 ABLG_10020,rougheye,Sebastes aleutianus
 ABLG_4670,rougheye,Sebastes aleutianus
+ABLG4670,rougheye,Sebastes aleutianus
 ABLG_11514,rougheye,Sebastes aleutianus
 ABLG_10023,rougheye,Sebastes aleutianus
 ABLG_11942,vermilion,Sebastes miniatus

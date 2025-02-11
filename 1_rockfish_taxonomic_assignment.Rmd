@@ -40,6 +40,20 @@ rock_id <- rock %>%
   rename(species = Organism)
 ```
 
+what ASVS did not get an assignment?
+```{r}
+temp <- rock_id %>% ungroup() %>% select(qseqid) %>% arrange() %>% unique() %>%
+  separate(qseqid, into = c('x', 'num'), sep = "_")
+
+observed <- as.integer(temp$num)
+all <- 1:334
+
+missing <- setdiff(all, observed)
+missing
+```
+
+
+
 ## rank the hits by % identity
 ```{r}
 seq_id_diff <- rock_id %>%

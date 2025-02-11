@@ -123,8 +123,12 @@ head(pie)
 
 ```{r}
 net <- haploNet(haps)
-plot(net,size=attr(net,"freq"),pie=pie)
-legend("bottomleft", colnames(pie), col=rainbow(ncol(pie)), pch=19, ncol=2)
+
+# Define custom colors (modify as needed)
+my_colors <- c("green", "purple", "orange")
+
+plot(net,size=attr(net,"freq"),pie=pie, bg = my_colors)
+legend("bottomleft", colnames(pie), col=my_colors, pch=19, ncol=2)
 ```
 
 
@@ -178,19 +182,27 @@ head(pie_filtered)
 
 ```{r}
 net_filtered <- haploNet(haps_filtered)
-plot(net_filtered,size=attr(net_filtered,"freq"),pie=pie_filtered)
-#legend("bottomright", colnames(pie_filtered), col=rainbow(ncol(pie_filtered)), pch=19, ncol=2)
+
+# Define custom colors (modify as needed)
+my_colors <- c("#7f7f7f", "#77ab31", "#2bbab8")
+
+#png("/home/kimberly.ledger/rockfish_mb/figures/haplotypes.png", width = 2400, height = 1800, res = 300)  # Set dimensions & resolution
+
+plot(net_filtered,size=attr(net_filtered,"freq"),pie=pie_filtered, bg = my_colors, labels = rep("", length(net)))
+legend("bottomright", colnames(pie_filtered), col=my_colors, pch=19, ncol=2)
+
+#dev.off()
 ```
 
 ```{r}
-plot(net_filtered,size=attr(net_filtered,"freq"),pie=pie_filtered, labels = NA)
-legend("topleft", colnames(pie_filtered), col=rainbow(ncol(pie_filtered)), pch=19, ncol=2)
+png("/home/kimberly.ledger/rockfish_mb/figures/haplotypes_legend.png", width = 2400, height = 1800, res = 300)  # Set dimensions & resolution
+plot(net_filtered,size=attr(net_filtered,"freq"),pie=pie_filtered, bg = my_colors)
+legend("topleft", colnames(pie_filtered), col=my_colors, pch=19, ncol=2)
+dev.off()
 ```
 
 
 name each haplotype by it's composition 
-
-
 
 ```{r}
 haplotype_freqs <- data.frame(pie_filtered) %>%
@@ -204,60 +216,9 @@ haplotype_freqs <- data.frame(pie_filtered) %>%
 haplotype_freqs_table <- data.frame(pie_filtered) %>%
   pivot_wider(names_from = Var2, values_from = Freq) %>%
   dplyr::rename(haplotype = Var1)
+
+sum(haplotype_freqs_table$`Sebastes ciliatus`)
+sum(haplotype_freqs_table$`Sebastes variabilis`)
 ```
-
-
-## trying a cluster analysis 
-```{r}
-library(ape)
-
-data <- read.dna("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_minidloop_aligned.fasta", format = "fasta")
-
-dist_matrix <- dist.dna(data)
-
-hc <- hclust(dist_matrix)
-
-plot(hc)
-
-clusters <- cutree(hc, h = 0.02)
-clusters
-
-# Convert hierarchical clustering result into a phylo object
-tree <- as.phylo(hc)
-
-# Assign colors based on clusters
-cluster_colors <- rainbow(length(unique(clusters)))[clusters]
-
-# Plot the tree with colors for each cluster
-plot(tree, tip.color = cluster_colors, main = "Tree Colored by Cluster")
-
-# Assuming 'clusters' contains the cluster assignments after using cutree
-cluster_counts <- table(clusters)
-
-# Print the count of sequences in each cluster
-print(cluster_counts)
-
-# Get the sample names (sequence names) and cluster assignment 
-cluster_df <- data.frame(clusters)
-cluster_df$Name<- rownames(cluster_df)
-
-#join spp id 
-meta_aligned <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_meta.csv")
-
-cluster_df <- cluster_df %>%
-  left_join(meta_aligned, by = c("Name")) %>%
-  mutate(Organism = ifelse(Name == "31082_consensus_extraction", "Sebastes polyspinis", Organism))
-
-cluster_table <- cluster_df %>%
-  group_by(clusters, Organism) %>%
-  summarise(count = n()) %>%
-  ungroup() %>%
-  group_by(clusters) %>%
-  mutate(total = sum(count)) %>%
-  pivot_wider(names_from = Organism, values_from = count, values_fill = 0)
-  
-```
-
-okay, maybe do some removal of sequences that aren't similar to any other. but also some clustering of some sequences to those that are very similar - so not to drop too much data. 
 
 

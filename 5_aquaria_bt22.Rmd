@@ -173,7 +173,7 @@ tank_pres_plot <- ggplot(tank_pres, aes(x = Sample_ID, y = taxon, fill = as.fact
   theme_minimal() +
   labs(#title = "taxon Presence Across Replicates",
        x = "replicate", 
-       y = "taxon") +
+       y = "") +
   theme(axis.text.x = element_text(angle = 0, hjust = 1))
 tank_pres_plot 
 ```
@@ -243,18 +243,20 @@ field_table_w_meta %>%
   group_by(station) %>%
   summarise(n = n())
 
-my_colors <- c("#f7754f",  "#6e9bf4", "#cc7af4", "#f565cc", "#77ab31")
+my_colors <- c("#f5a056",  "#6e9bf4", "#cc7af4", "#1f77b4", "#77ab31")
 
 field_table_w_meta <- field_table_w_meta %>%
-  mutate(taxon_abbr = ifelse(taxon == "Sebastes ciliatus_variabilis_polyspinus", "Sebastes cvp", taxon), 
-         taxon_abbr = ifelse(taxon == "Sebastes ciliatus_variabilis", "Sebastes cv", taxon_abbr))
+  mutate(taxon_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", taxon))
+  #mutate(taxon_abbr = ifelse(taxon == "Sebastes ciliatus_variabilis_polyspinus", "Sebastes cvp", taxon), 
+         #taxon_abbr = ifelse(taxon == "Sebastes ciliatus_variabilis", "Sebastes cv", taxon_abbr))
 
 bt_plot2 <- field_table_w_meta %>%
+  mutate(station_dummy = as.numeric(station)) %>%
   ggplot(aes(x=Sample_ID, y=prop_reads, fill=taxon_abbr)) +
   geom_bar(stat = "identity") + 
   theme_bw() +
   scale_fill_manual(values = my_colors, na.translate = FALSE) + # Removes NA from the legend
-  facet_grid(~station, scales = "free_x") +
+  facet_grid(~station_dummy, scales = "free_x") +
   labs(
     y = "relative read abundance (%)",
     x = "samples by haul") + 
@@ -265,16 +267,48 @@ bt_plot2 <- field_table_w_meta %>%
     legend.key.size = unit(0.3, "cm"),
     legend.position = "bottom",
     legend.title = element_blank(),
-    strip.text = element_blank()  # Removes facet labels
+    #strip.text = element_blank(), # Removes facet labels
+    axis.ticks.x = element_blank() 
   )
   
 bt_plot2
 ```
 
 ```{r}
-ggsave("/home/kimberly.ledger/rockfish_mb/figures/bt2_w_zeros.png", plot = bt_plot2, dpi = 300, width = 8, height =3)
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/bt2_w_zeros_dummyfacets.png", plot = bt_plot2, dpi = 300, width = 8, height =3)
 ```
 
+```{r}
+field_table_w_meta %>%
+  filter(is.na(taxon))
+
+field_table_w_meta %>%
+  select(Sample_ID) %>%
+  unique()
+
+field_table_w_meta %>%
+  select(Sample_ID, reads_per_sample) %>%
+  unique() %>%
+  filter(!is.na(reads_per_sample)) %>%
+  summarize(mean = mean(reads_per_sample),
+            sd = sd(reads_per_sample))
+
+field_table_w_meta %>%
+  group_by(taxon) %>%
+  filter(tot_reads > 100) %>%
+  summarize(count = n())
+```
+
+controls 
+```{r}
+controls_table <- taxon_table %>%
+  filter(sample_type != "sample") %>%
+  group_by(Sample_ID) %>%
+   mutate(reads_per_sample = sum(tot_reads)) %>%
+   mutate(prop_reads = tot_reads/reads_per_sample) %>%
+  filter(sample_type == "field_blank") %>%
+  filter(prop_reads > 0.25)
+```
 
 
 check how many eDNA samples were collected at each haul location 
@@ -327,6 +361,11 @@ bt_sebastes <- bt_catch %>%
   select(Haul.number, Taxon.common.name:Taxon.confidence.rating) %>%
   arrange(Haul.number) %>%
   filter(str_detect(Taxon.scientific.name, "Sebastes"))
+
+#bt_sebastolobus <- bt_catch %>%
+#  select(Haul.number, Taxon.common.name:Taxon.confidence.rating) %>%
+#  arrange(Haul.number) %>%
+#  filter(str_detect(Taxon.scientific.name, "Sebastolobus"))
 ```
 
 only northerns and one pop in hauls associated with eDNA samples 
@@ -335,7 +374,7 @@ how about what sebastes taxon were caught in the entire 2022 AI bottom trawl sur
 ```{r}
 seb_in_bt <- read.csv("/home/kimberly.ledger/BT2021_metabarcoding/data/2022_AI_BT_Teleostei_CATCH_AND_HAUL_DATA_TAXON.csv") %>%
   filter(Vessel.name == "OCEAN EXPLORER") %>% 
-  filter(str_detect(Taxon.scientific.name, "Sebastes"))
+  filter(str_detect(Taxon.scientific.name, "Sebast"))
 
 unique(seb_in_bt$Taxon.scientific.name)
 ```

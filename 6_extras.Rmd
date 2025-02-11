@@ -9,6 +9,106 @@ libraries
 library(tidyverse)
 ```
 
+make table for supplementary that outline the number of sequences and tissues tested for each species 
+
+```{r}
+id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rkfish_ref_dbs/rockfish_reference_db_534_20250117.csv") %>%
+  rename(accession_id = Name)
+
+id_w_source <- id %>%
+  mutate(source = if_else(grepl("\\.fa", Description), "NWFSC", NA),
+         source = if_else(grepl("\\.fa", accession_id), "NWFSC", source),
+         source = if_else(grepl("\\Assembled", Description), "NWFSC", source),
+         source = if_else(grepl("\\ABLG", accession_id), "ABL", source),     ## rheses are the miseq mini dloop seqs
+         source = if_else(grepl("\\hap", accession_id), "ABL", source)) %>%   ## these are the lcWGS haplotypes 
+  mutate(source = ifelse(is.na(source), "NCBI", source))
+```
+
+```{r}
+seq_tb <- id_w_source %>%
+  group_by(Organism, source) %>%
+  tally() %>%
+  pivot_wider(names_from = source, values_from = n, values_fill = 0) %>%
+  mutate(total_seqs = NCBI + NWFSC + ABL) %>%
+  rename(species_name = Organism)
+```
+
+now tally the tissues that i tested 
+```{r}
+ablg <- read.csv("~/rockfish_mb/data/ABLG_BURKE_rockfishDNA.csv") %>%
+  filter(common_name != "yelloweye") %>% 
+  filter(species_name != "Sebastolobus altivelis") %>%
+  filter(species_name != "Sebastolobus macrochir") %>%
+  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG_11613", "ABLG_11614", "ABLG11660")) %>% ## remove the extra deacons, etc that went into the reference db 
+  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect  
+
+tissue_tb <- ablg %>%
+  group_by(species_name) %>%
+  tally() %>%
+  rename(tissues = n)
+```
+
+```{r}
+my_table <- seq_tb %>%
+  left_join(tissue_tb) %>%
+  mutate(tissues = ifelse(is.na(tissues), 0, tissues))
+```
+
+```{r}
+write.csv(my_table, "/home/kimberly.ledger/rockfish_mb/outputs/seq_tissue_summary.csv")
+```
+
+
+phylogenetic tree of AK species
+```{r}
+library(ape)
+# Read the phylogenetic tree
+tree <- read.tree("/home/kimberly.ledger/rockfish_mb/data/miniDloop_AKspp_25supportthres.newick")
+plot(tree)
+
+id <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rkfish_ref_dbs/rockfish_reference_db_534_20250117.csv") %>%
+  rename(accession_id = Name)
+
+# Get species order
+species_order_tissue <- as.data.frame(tree$tip.label) %>%
+  rename(accession_id = "tree$tip.label") %>%
+  left_join(id) %>%
+  mutate(Organism = ifelse(accession_id == "'NC_060709 PCR Product'", "Sebastes ciliatus", Organism)) %>%
+  mutate(Organism = ifelse(accession_id == "'NC_060711 PCR Product'", "Sebastes variabilis", Organism)) %>%
+  mutate(Organism = ifelse(accession_id == "'NC_082820 PCR Product'", "Sebastolobus alascanus", Organism)) %>%
+  mutate(Organism = ifelse(accession_id == "'NC_082781 PCR Product'", "Sebastolobus macrochir", Organism)) %>%
+  mutate(Organism = ifelse(accession_id == "'NC_085186 PCR Product'", "Sebastes ruberrimus", Organism)) %>%
+  mutate(Organism_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", Organism))
+```
+
+plot the tree
+```{r}
+tree$tip.label <- species_order_tissue$Organism
+
+plot.phylo(
+  tree,
+  type = "phylogram",      # Tree layout
+  align.tip.label = TRUE,  # Align tip labels
+  cex = 0.8,               # Font size for tip labels
+  no.margin = TRUE         # Remove extra margins
+)
+```
+
+```{r}
+png("/home/kimberly.ledger/rockfish_mb/figures/rockfish_phylo_ak_spp_25.png", width = 600, height = 800, res = 300)
+plot.phylo(
+ tree,
+ type = "phylogram",      # Tree layout
+ align.tip.label = TRUE,  # Align tip labels
+ cex = 0.3,               # Font size for tip labels
+ no.margin = TRUE         # Remove extra margins
+)
+dev.off
+```
+
+
+
+
 ```{r}
 differences <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_534_matrix.csv") %>%
   rename(Name = X) %>%
@@ -48,5 +148,14 @@ differences %>%
 differences %>%
   filter(Org1 != Org2) %>%
   filter(PercDiff == 0)
+```
+```{r}
+unique(id$Organism)
+```
+
+```{r}
+differences %>%
+  filter(Org1 == "Sebastes emphaeus") %>%
+  filter(Org2 == "Sebastes proriger")
 ```
 

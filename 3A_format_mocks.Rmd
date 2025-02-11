@@ -36,6 +36,13 @@ mock_expected <- read.csv("/home/kimberly.ledger/rockfish_mb/data/rockfish_mock.
   mutate(start_conc_ng = uL * conc_ng_uL,
          community_total_conc = sum(start_conc_ng),
          Perc_Community = start_conc_ng/community_total_conc)
+
+
+sup_table <- mock_expected %>%
+  select(species, Community_ID, Perc_Community) %>%
+  pivot_wider(names_from = "Community_ID", values_from = "Perc_Community")
+
+write.csv(sup_table, "/home/kimberly.ledger/rockfish_mb/outputs/sup_table2.csv")
 ```
 
 assign asv's to taxons 

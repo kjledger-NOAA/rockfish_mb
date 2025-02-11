@@ -22,7 +22,7 @@ tax <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20250
 
 load decontaminated reads 
 ```{r}
-asv_table <- read.csv("/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv") %>%
+asv_table <- read.csv("/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table_noreadcountfilter.csv") %>%  ## for tissue samples, not including the 200 total read count filter 
   select(!X) %>%
   filter(sample_type == "tissue") %>%
   select(!sample_type) %>% 
@@ -45,33 +45,36 @@ reads_per_sample <- taxon_table %>%
   mutate(reads_per_sample = sum(tot_reads))
 
 taxon_table_filtered <- taxon_table %>%
-  filter(!sample_id %in% c("34137", "34138", "34139", "34140", "ABLG11655")) %>% ### remove yelloweye and likely the mis'd olive 
+  filter(!sample_id %in% c("34137", "34138", "34139", "34140")) %>% ### remove yelloweye
   filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG_11613", "ABLG_11614", "ABLG11660")) %>% ## remove the extra deacons, etc that went into the reference db 
-  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect
+  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) %>% ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect
+  filter(!sample_id %in% c("43638", "43639", "43682", "43625", "43642", "43653")) %>% #remove Sebastolobus
+  filter(!sample_id %in% c("ABLG_4670", "ABLG_8566", "ABLG_9486"))  ## a few tissue samples were sequenced twice
 
 taxon_table_filtered %>% select(sample_id) %>% unique()
 ```
 
 
-read in file that has the tissue ids for the rockfish samples (as of 1/15/25 i've realized some tissue ids don't match wgs ids so i fixed them in the tissue metadat)
+read in file that has the tissue ids for the rockfish samples (as of 1/15/25 i've realized some tissue ids don't match wgs ids so i fixed them in the tissue metadata)
 ```{r}
 ablg <- read.csv("~/rockfish_mb/data/ABLG_BURKE_rockfishDNA.csv") %>%
   filter(common_name != "yelloweye") %>%  ## need to pick new tissue samples to retest at some point
-  filter(sample_id != "ABLG11655") #%>% ## misID of tissue
-  #filter(sample_id != "43649") ## remove one remaining diploproa (splitnose)
+  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG_11613", "ABLG_11614", "ABLG11660")) %>% ## remove the extra deacons, etc that went into the reference db 
+  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) %>% ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect 
+  filter(!sample_id %in% c("43638", "43639", "43682", "43625", "43642", "43653")) %>% #remove Sebastolobus
+  filter(!sample_id %in% c("ABLG_4670", "ABLG_8566", "ABLG_9486"))  ## a few tissue samples were sequenced twice
 ```
 
 how many species tested? 
 ```{r}
-ablg_included <-  ablg %>% filter(species_name != "Sebastolobus altivelis") %>%
-  filter(species_name != "Sebastolobus macrochir") %>%
-  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG_11613", "ABLG_11614", "ABLG11660")) %>%
-  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect
+ablg %>% select(sample_id) %>% unique()
 
-ablg_included %>%  select(common_name) %>% unique()
+ablg %>%  select(common_name, species_name) %>% arrange(species_name) %>% unique()
 ```
+
+
 ```{r}
-ablg_included %>% group_by(common_name) %>%
+ablg %>% group_by(species_name) %>%
   summarize(count =n ()) %>%
   summarize(min_count = min(count),
             mean_count = mean(count),
@@ -88,16 +91,13 @@ rockfish <- taxon_table_filtered %>%
   mutate(prop_reads = tot_reads/reads_per_sample) %>%
   mutate(correct_id = if_else(taxon == species_name, "yes", "no")) %>%
   mutate(correct_id = replace_na(correct_id, "no")) %>%
-  mutate(species_name_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", species_name))
+  mutate(species_name_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", species_name)) 
 ```
 
 
 make a plot 
 ```{r}
 p1 <- rockfish %>%
-  filter(species_name != "Sebastolobus altivelis") %>%
-  filter(species_name != "Sebastolobus macrochir") %>%  ## not going to worry about sebastolobus 
-#  filter(!sample_id %in% ablg_id$accession_id) %>%
   ggplot(aes(x=sample_id, y=prop_reads, fill=correct_id)) +
   geom_bar(stat = "identity") + 
   theme_bw() +
@@ -118,9 +118,6 @@ p1
 
 ```{r}
 p2 <- rockfish %>%
-  filter(species_name != "Sebastolobus altivelis") %>%
-  filter(species_name != "Sebastolobus macrochir") %>%  ## not going to worry about sebastolobus 
-  #filter(!sample_id %in% ablg_id$accession_id) %>%
   ggplot(aes(x=sample_id, y=prop_reads, fill=taxon)) +
   geom_bar(stat = "identity") + 
   theme_bw() +
@@ -146,36 +143,33 @@ ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_colors.png", plot 
 
 ```{r}
 rockfish <- rockfish %>%
-  filter(species_name != "Sebastolobus altivelis") %>%
-  filter(species_name != "Sebastolobus macrochir") %>%  ## not going to worry about sebastolobus 
-  #filter(!sample_id %in% ablg_id$accession_id) %>%
   mutate(taxon = ifelse(taxon == "Sebastes ev", "Sebastes emphaeus_variegatus", taxon)) %>% 
   mutate(taxon = ifelse(taxon == "Sebastes de", "Sebastes diaconus_entomelas", taxon)) %>% 
-  mutate(taxon = ifelse(taxon == "Sebastes vw", "Sebastes variegatus_wilsoni", taxon))
+  mutate(taxon = ifelse(taxon == "Sebastes vw", "Sebastes variegatus_wilsoni", taxon)) %>%
+  mutate(taxon_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", taxon))
 ```
 
-try out making an assignment plot. 
+explore 70% threshold
+```{r}
+samples_w_greaterthan50 <- rockfish %>%
+  ungroup() %>%
+  filter(prop_reads > 0.5)
 
+rockfish_filtered <- rockfish %>%
+  filter(!sample_id %in% samples_w_greaterthan50$sample_id)
+```
 
-NOTE TO SELF - remove ABLGs from test that ended up going into reference DB!
-make sure the .csv file matchs the .fasta file for the ref db 
-for now - deacon: ABLG_9891, ABLG_9895, ABLG_10622, ABLG_10628, and ABLG_10631 are in ref db
-- for crocotulus - ABLG_11613, ABLG_11614 are in ref db 
-- for serranoides - ABLG11660
-- some dusky, northern and darks have wgs data used to inform reference db. 
-
+making an assignment plot. 
 ```{r}
 # Create a summarized data frame
 assignment_matrix <- rockfish %>%
-  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG_11613", "ABLG_11614", "ABLG11660")) %>%
-  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) %>% ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect
   ungroup() %>%
-  filter(prop_reads > 0.7) %>%
-  count(species_name, taxon) %>% # Count occurrences of each combination
-  complete(species_name, taxon, fill = list(n = 0)) # Ensure all combinations exist
+  filter(prop_reads > 0.5) %>%
+  count(species_name_abbr, taxon_abbr) %>% # Count occurrences of each combination
+  complete(species_name_abbr, taxon_abbr, fill = list(n = 0)) # Ensure all combinations exist
 
 # Create the heatmap
-ggplot(assignment_matrix, aes(x = species_name, y = taxon, fill = n)) +
+ggplot(assignment_matrix, aes(x = species_name_abbr, y = taxon_abbr, fill = n)) +
   geom_tile(color = "white") +
   scale_fill_gradient(low = "white", high = "steelblue", name = "Sample Count") +
   theme_minimal() +
@@ -188,8 +182,8 @@ ggplot(assignment_matrix, aes(x = species_name, y = taxon, fill = n)) +
 ```
 
 ```{r}
-unique(assignment_matrix$species_name) #these are the tissue IDs
-unique(assignment_matrix$taxon) #these are the asv IDs
+unique(assignment_matrix$species_name_abbr) #these are the tissue IDs
+unique(assignment_matrix$taxon_abbr) #these are the asv IDs
 ```
 
 ```{r}
@@ -206,7 +200,8 @@ species_order_tissue <- as.data.frame(tree$tip.label) %>%
   rename(accession_id = "tree$tip.label") %>%
   left_join(id) %>%
   mutate(Organism = ifelse(accession_id == "'NC_060709 PCR Product'", "Sebastes ciliatus", Organism)) %>%
-  mutate(Organism = ifelse(accession_id == "'NC_060711 PCR Product'", "Sebastes variabilis", Organism))
+  mutate(Organism = ifelse(accession_id == "'NC_060711 PCR Product'", "Sebastes variabilis", Organism)) %>%
+  mutate(Organism_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", Organism))
 ```
 
 plot the tree
@@ -223,48 +218,43 @@ plot.phylo(
 ```
 
 ```{r}
-png("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_tissue_tree_updated.png", width = 600, height = 800, res = 300)
-plot.phylo(
-  tree,
-  type = "phylogram",      # Tree layout
-  align.tip.label = TRUE,  # Align tip labels
-  cex = 0.3,               # Font size for tip labels
-  no.margin = TRUE         # Remove extra margins
-)
-dev.off
-```
-
-```{r}
-# plot.phylo(
-#   tree,
-#   type = "phylogram",      # Tree layout
-#   align.tip.label = TRUE,  # Align tip labels
-#   cex = 0.8,               # Font size for tip labels
-#   no.margin = TRUE ,       # Remove extra margins
-#   direction = "upwards" 
-# )
+#png("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_tissue_tree_updated.png", width = 600, height = 800, res = 300)
+#plot.phylo(
+#  tree,
+#  type = "phylogram",      # Tree layout
+#  align.tip.label = TRUE,  # Align tip labels
+#  cex = 0.3,               # Font size for tip labels
+#  no.margin = TRUE         # Remove extra margins
+#)
+#dev.off
 ```
 
 order heatmap by tree
 ```{r}
-species_order_asv <- c("Sebastes glaucus",        "Sebastes borealis",       "Sebastes brevispinis",    "Sebastes proriger",       "Sebastes miniatus",      
-"Sebastes pinniger",       "Sebastes elongatus",     "Sebastes melanostomus",   "Sebastes babcocki",       "Sebastes nigrocinctus",  
-"Sebastes paucispinis",    "Sebastes moseri",         "Sebastes saxicola",       "Sebastes crocotulus",     "Sebastes goodei",        
-"Sebastes entomelas",      "Sebastes diaconus",       "Sebastes diaconus_entomelas",      "Sebastes zacentrus",      "Sebastes emphaeus",  "Sebastes emphaeus_variegatus", "Sebastes wilsoni",        "Sebastes variegatus",     "Sebastes melanops",       "Sebastes flavidus",       "Sebastes serranoides", "Sebastes aleutianus",     "Sebastes melanostictus",  "Sebastes alutus",         "Sebastes crameri",        "Sebastes reedi",        
-"Sebastes polyspinis",     "Sebastes ciliatus_variabilis",  "Sebastes rosaceus",       "Sebastes helvomaculatus", "Sebastes chlorostictus",  "Sebastes ensifer",        "Sebastes aurora",         "Sebastes diploproa",      "Sebastes auriculatus", "Sebastes carnatus",       "Sebastes caurinus",      "Sebastes maliger",       "Sebastes nebulosus")
+# species_order_asv <- c("Sebastes glaucus",        "Sebastes borealis",       "Sebastes brevispinis",    "Sebastes proriger",       "Sebastes miniatus",      
+# "Sebastes pinniger",       "Sebastes elongatus",     "Sebastes melanostomus",   "Sebastes babcocki",       "Sebastes nigrocinctus",  
+# "Sebastes paucispinis",    "Sebastes moseri",         "Sebastes saxicola",       "Sebastes crocotulus",     "Sebastes goodei",        
+# "Sebastes entomelas",      "Sebastes diaconus",       "Sebastes diaconus_entomelas",      "Sebastes zacentrus",      "Sebastes emphaeus",  "Sebastes emphaeus_variegatus", "Sebastes wilsoni",        "Sebastes variegatus",     "Sebastes melanops",       "Sebastes flavidus",       "Sebastes serranoides", "Sebastes aleutianus",     "Sebastes melanostictus",  "Sebastes alutus",         "Sebastes crameri",        "Sebastes reedi",        
+# "Sebastes polyspinis",     "Sebastes ciliatus_variabilis",  "Sebastes rosaceus",       "Sebastes helvomaculatus", "Sebastes chlorostictus",  "Sebastes ensifer",        "Sebastes aurora",         "Sebastes diploproa",      "Sebastes auriculatus", "Sebastes carnatus",       "Sebastes caurinus",      "Sebastes maliger",       "Sebastes nebulosus")
+
+species_order_asv <- c("S. glaucus",        "S. borealis",       "S. brevispinis",    "S. proriger",       "S. miniatus",      
+"S. pinniger",       "S. elongatus",     "S. melanostomus",   "S. babcocki",       "S. nigrocinctus",  
+"S. paucispinis",   "S. ovalis",  "S. moseri",         "S. saxicola",       "S. crocotulus",     "S. goodei",        
+"S. entomelas",      "S. diaconus",       "S. diaconus_entomelas",      "S. zacentrus",      "S. emphaeus",  "S. emphaeus_variegatus", "S. wilsoni",        "S. variegatus",     "S. melanops",       "S. flavidus",       "S. serranoides", "S. aleutianus",     "S. melanostictus",  "S. alutus",         "S. crameri",        "S. reedi",        
+"S. polyspinis",     "S. ciliatus_variabilis",  "S. rosaceus",       "S. helvomaculatus", "S. chlorostictus",  "S. ensifer",        "S. aurora",         "S. diploproa",      "S. auriculatus", "S. carnatus",       "S. caurinus",      "S. maliger",       "S. nebulosus")
 
 assignment_matrix_ordered <- assignment_matrix %>%
   mutate(
-    species_name = factor(species_name, levels = species_order_tissue$Organism),
-    taxon = factor(taxon, levels = species_order_asv)
+    species_name_abbr = factor(species_name_abbr, levels = species_order_tissue$Organism_abbr),
+    taxon_abbr = factor(taxon_abbr, levels = species_order_asv)
   ) %>%
-  mutate(match = ifelse(as.character(species_name) == as.character(taxon), "yes", "no")) %>%
-  mutate(match = ifelse(species_name == "Sebastes ciliatus" & taxon == "Sebastes ciliatus_variabilis", "yes", match),
-         match = ifelse(species_name == "Sebastes variabilis" & taxon == "Sebastes ciliatus_variabilis", "yes", match),
-         match = ifelse(species_name == "Sebastes diaconus" & taxon == "Sebastes diaconus_entomelas", "yes", match),
-          match = ifelse(species_name == "Sebastes entomelas" & taxon == "Sebastes diaconus_entomelas", "yes", match),
-          match = ifelse(species_name == "Sebastes emphaeus" & taxon == "Sebastes emphaeus_variegatus", "yes", match),
-         match = ifelse(species_name == "Sebastes variegatus" & taxon == "Sebastes emphaeus_variegatus", "yes", match))
+  mutate(match = ifelse(as.character(species_name_abbr) == as.character(taxon_abbr), "yes", "no")) %>%
+  mutate(match = ifelse(species_name_abbr == "S. ciliatus" & taxon_abbr == "S. ciliatus_variabilis", "yes", match),
+         match = ifelse(species_name_abbr == "S. variabilis" & taxon_abbr == "S. ciliatus_variabilis", "yes", match),
+         match = ifelse(species_name_abbr == "S. diaconus" & taxon_abbr == "S. diaconus_entomelas", "yes", match),
+          match = ifelse(species_name_abbr == "S. entomelas" & taxon_abbr == "S. diaconus_entomelas", "yes", match),
+          match = ifelse(species_name_abbr == "S. emphaeus" & taxon_abbr == "S. emphaeus_variegatus", "yes", match),
+         match = ifelse(species_name_abbr == "S. variegatus" & taxon_abbr == "S. emphaeus_variegatus", "yes", match))
 
 # Create a new variable 'fill_color' to combine 'n' and 'match' for conditional coloring
 assignment_matrix_ordered <- assignment_matrix_ordered %>%
@@ -279,17 +269,16 @@ assignment_matrix_ordered <- assignment_matrix_ordered %>%
 custom_labels <-c (2,0,2,4,6,8)
 
 # Create the heatmap
-tissue_heatmap <- ggplot(assignment_matrix_ordered, aes(x = species_name, y = taxon, fill = fill_color)) +
+tissue_heatmap <- ggplot(assignment_matrix_ordered, aes(x = species_name_abbr, y = taxon_abbr, fill = fill_color)) +
   geom_tile(color = "white") +
   # Use scale_fill_gradientn() with a custom color palette
   scale_fill_gradientn(
     colors = c("lightcoral", "white", "#1E4160"), 
-    values = scales::rescale(c(-2, 0, 8)),  # Adjust to control the transition between colors
+    values = scales::rescale(c(-2, 0, 10)),  # Adjust to control the transition between colors
     name = "Sample Count",
-    breaks = seq(-2, 8, by = 2),  # Set the legend breaks to show only integers
+    breaks = seq(-2, 10, by = 2),  # Set the legend breaks to show only integers
     #labels = custom_labels
      ) +
-  
   theme_minimal() +
   labs(
     x = "Tissue ID",
@@ -303,7 +292,7 @@ tissue_heatmap
 ```
 
 ```{r}
-#ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_heatmap.png", plot = tissue_heatmap, dpi = 300, width = 10, height = 8)
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_heatmap_abbr.png", plot = tissue_heatmap, dpi = 300, width = 10, height = 8)
 ```
 
 ```{r}
@@ -312,7 +301,7 @@ assignment_matrix_ordered %>%
   summarise(total = sum(n))
 
 assignment_matrix_ordered %>% 
-  filter(taxon %in% c("Sebastes ciliatus_variabilis", "Sebastes diaconus_entomelas", "Sebastes emphaeus_variegatus")) %>%
+  filter(taxon_abbr %in% c("S. ciliatus_variabilis", "S. diaconus_entomelas", "S. emphaeus_variegatus")) %>%
   #filter(match == 'yes') %>%
   summarise(total = sum(n))
 

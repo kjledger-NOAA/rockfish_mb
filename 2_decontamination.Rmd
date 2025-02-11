@@ -257,4 +257,6 @@ asv_table_with_sample_type %>%
 
 ```{r}
 write.csv(asv_table_filter2, "/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv")
+
+write.csv(asv_table_filter1, "/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table_noreadcountfilter.csv")
 ```
