@@ -48,4 +48,3 @@ data/cpv_fasta/cpv_minidloop_aligned.fasta - alignment of S. ciliatus, S. polysp
 data/cpv_fasta/cpv_meta.csv - metadata for cpv_minidloop_aligned.fasta  
 
 note: due to the file size, rockfish_reference_db_534_20250117.fasta is included as a supplementary file
------
