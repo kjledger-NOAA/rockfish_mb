@@ -42,7 +42,7 @@ sup_table <- mock_expected %>%
   select(species, Community_ID, Perc_Community) %>%
   pivot_wider(names_from = "Community_ID", values_from = "Perc_Community")
 
-write.csv(sup_table, "/home/kimberly.ledger/rockfish_mb/outputs/sup_table2.csv")
+#write.csv(sup_table, "/home/kimberly.ledger/rockfish_mb/outputs/sup_table2.csv")
 ```
 
 assign asv's to taxons 
@@ -101,7 +101,7 @@ mock_taxons <- mock_taxons %>%
 
 note - i used unique haplotypes of dark and dusky for the mock communities so they could be differentiated (ASV27 is ciliatus and ASV26 is variabilis)
 
-reformat and join the mock reads with expected mock values - for now using the v.534 version of tax assignment
+reformat and join the mock reads with expected mock values 
 ```{r}
 mock_table <- mock_taxons %>%
   filter(taxon != "Sebastes reedi") %>%
@@ -136,12 +136,11 @@ mock_export <- mock_table %>%
   left_join(mock_start) %>%
   mutate(start_conc_ng = ifelse(is.na(start_conc_ng), 0, start_conc_ng))
 
-write.csv(mock_export, "/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20250117.csv", row.names = F)
+#write.csv(mock_export, "/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20250117.csv", row.names = F)
 ```
 
 
-
-## the rest are just some exploratory plots 
+### the rest of the code is just some exploratory plots 
 ```{r}
 mock_table %>%
   ggplot(aes(x=Sample_ID, y=Perc_Community, fill=taxon)) +
@@ -215,7 +214,6 @@ all_even %>%
 ```
 
 
-
 ```{r}
 ns_even <- mock_taxons_534  %>% 
   separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%
@@ -270,12 +268,8 @@ ns_even %>%
   )
 ```
 
-- S. aleutianus and S. alutus and S. polyspinis and S. zacentrus is probably a bit of tag jumping 
-- maliger and melanops and pinniger and nebulosus, and nigrocinctus pres looks okay (though proportions are quite skewed)
-- ruberrimus is missing (tissue seqs for this were wacky) - they assigned to babcocki and pinniger. 
 
 now let's check offshore_even 
-
 ```{r}
 os_even <- mock_taxons_534 %>% 
   separate(Sample_ID, into = c("p1", "p2", "replicate"), sep = "_", remove = F) %>%

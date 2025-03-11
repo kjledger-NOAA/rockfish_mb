@@ -600,5 +600,5 @@ Output <- list(
 ```
 
 ```{r}
-save(Output,file=paste0("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mock_20250117_allmocks",".Rdata"))
+#save(Output,file=paste0("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mock_20250117_allmocks",".Rdata"))
 ```

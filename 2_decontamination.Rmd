@@ -21,7 +21,7 @@ load sample metadata
 metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/metadata_tissue_mock_bt22.csv") %>%
   rename(Sample_ID = sample_ID) %>%
   mutate(sample_type = ifelse(Sample_ID == "PC", "pcr_blank", sample_type),
-         sample_type = ifelse(Sample_ID == "NC", "positive", sample_type))    ### if flip-flopped these IDs 
+         sample_type = ifelse(Sample_ID == "NC", "positive", sample_type))    ### ids for pc and nc were flip-flopped  
 ```
 
 check sequence table outputs
@@ -65,62 +65,7 @@ asv_first <- which(startsWith(names(asv_table_with_sample_type), "ASV"))[1]
 asv_last <- ncol(asv_table_with_sample_type)
 ```
 
-
-# account for likely contaminants 
-
-step 1: tag-jumping: subtract the proportion of reads that jumped into the positive control samples from each environmental sample 
-step 2: remove ASVs that don't get a rockfish taxonomic assignment 
-step 3: remove any ASVs that don't show up in field samples 
-step 4: remove low read depth samples based on ASV accumulation curve  
-step 5: check dissimilarity across PCR replicates and remove any replicates with high dissimilarity 
-
-
-## Step 1. Account for tag-jumping by using the positive controls 
-
-subtract the proportion of reads that jumped into the positive control samples from each environmental sample 
-
-plot the positive controls
-```{r}
-asv_table_with_sample_type %>%
-  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
-  mutate(reads = as.numeric(reads)) %>%
-  mutate(reads = ifelse(is.na(reads), 0, reads)) %>%
-  filter(sample_type %in% c("positive")) %>%
-  filter(reads > 0) %>%
-  ggplot(aes(x=Sample_ID, y=reads, fill=ASV)) +
-  geom_bar(stat = "identity") + 
-  theme_bw() +
-  labs(
-    y = "number of sequencing reads",
-    x = "sample ID",
-    title = "ASV reads - positive controls") + 
-  theme(
-    axis.text.x = element_text(angle = 90, hjust = 0.95),
-    legend.text = element_text(size = 8),
-    legend.key.size = unit(0.3, "cm"),
-    #legend.position = "none",
-    legend.title = element_blank()
-  )
-```
-
-identify the maximum proportion of reads for each ASV found in the positive controls
-note: can only base this off PC22_A since the PC in the other plate was pop and that's a target species 
-```{r}
-prop_asvs_in_positives <- asv_table_with_sample_type %>%
-  filter(Sample_ID == "PC22_A") %>%
-  pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
-  mutate(reads = as.numeric(reads)) %>%
-  group_by(Sample_ID) %>%
-  mutate(TotalReadsPerSample = sum(reads)) %>%
-  mutate(Prop = reads/TotalReadsPerSample) %>%
-  group_by(ASV) %>%
-  summarise(max_prop = max(Prop)) %>%
-  arrange(desc(max_prop))
-```
-
-i'm not loving that there is only one pc sample to base this on. not going to subtract reads here. 
-
-subtract the max proportion of tag-jumped reads for each ASV from samples
+pivot table longer 
 ```{r}
 asv_table_long <- asv_table_with_sample_type %>%
   pivot_longer(cols = c(asv_first:asv_last), names_to = "ASV", values_to = "reads") %>%
@@ -128,8 +73,13 @@ asv_table_long <- asv_table_with_sample_type %>%
   mutate(reads = ifelse(is.na(reads), 0, reads))
 ```
 
+# account for likely contaminants 
 
-## Step 2. Remove ASVs that don't get a taxonomic assignment  
+step 1: remove ASVs that don't get a rockfish taxonomic assignment 
+step 2: remove any ASVs that don't show up in field samples (there were none)
+step 3: remove low read depth samples based on ASV accumulation curve  
+
+## Step 1. Remove ASVs that don't get a taxonomic assignment  
 
 ```{r}
 taxonomy <- read.csv("/home/kimberly.ledger/rockfish_mb/data/taxonomy_custom534_20250117.csv") %>% 
@@ -142,8 +92,7 @@ asv_table_filter1 <- asv_table_long %>%
 length(unique(taxonomy$ASV))
 ```
 
-
-## Step 3. Remove ASVs that do not occur in samples, tissues, or mock communities
+## Step 2. Remove ASVs that do not occur in samples, tissues, or mock communities
 i.e. just in controls or MIA
 
 ```{r}
@@ -163,15 +112,15 @@ not_in_samples
 
 there are none. 
 
-## Step 4. Remove low read depth samples based on ASV accumulation curve
+## Step 3. Remove low read depth samples based on ASV accumulation curve
 
-run separately for tissue and eDNA samples 
+run separately for tissue samples 
 ```{r}
 library(vegan)
 
 asv_table_wide_tissue <- asv_table_filter1 %>%
   filter(sample_type == "tissue") %>%
-  filter(!Sample_ID %in% c("34137", "34138", "34139", "34140")) %>%  ## remove wierd yelloweye tissues
+  filter(!Sample_ID %in% c("34137", "34138", "34139", "34140")) %>%  ## remove tissues not included in study 
   select(!sample_type) %>%
   mutate(reads = as.integer(reads)) %>%
   pivot_wider(names_from = ASV, values_from = reads)
@@ -189,7 +138,7 @@ rarecurve(asv_table_wide_tissue, step = 20, col = "blue", label = FALSE,
           xlim = c(0,400))
 ```
 
-
+run separately for eDNA samples 
 ```{r}
 asv_table_wide_sample <- asv_table_filter1 %>%
   filter(sample_type == "sample") %>%
@@ -214,7 +163,7 @@ rarecurve(asv_table_wide_sample, step = 20, col = "blue", label = FALSE,
 summarize in a table how many pcr replicates meet certain read count thresholds 
 ```{r}
 read_summary <- asv_table_filter1 %>%
-  filter(!Sample_ID %in% c("34137", "34138", "34139", "34140")) %>%  ## remove wierd yelloweye tissues
+  filter(!Sample_ID %in% c("34137", "34138", "34139", "34140")) %>%  ## remove tissues not included in study 
   group_by(Sample_ID, sample_type) %>%
   summarize(tot_reads = sum(reads)) %>%
   arrange(desc(tot_reads)) %>%
@@ -226,7 +175,7 @@ read_summary <- asv_table_filter1 %>%
             atleast1k = sum(tot_reads >= 1000))
 ```
 
-based on taxa accumulation curve and summary table, we will remove any pcr replicate with fewer than 200 reads from downstream analyses (regardless of sample type)
+based on taxa accumulation curve and summary table, we will remove any pcr replicate with fewer than 200 reads from downstream analyses for JUST the EDNA SAMPLES
 
 ```{r}
 reps_below <- asv_table_filter1 %>%
@@ -256,7 +205,6 @@ asv_table_with_sample_type %>%
 ```
 
 ```{r}
-write.csv(asv_table_filter2, "/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv")
-
-write.csv(asv_table_filter1, "/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table_noreadcountfilter.csv")
+#write.csv(asv_table_filter2, "/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv")
+#write.csv(asv_table_filter1, "/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table_noreadcountfilter.csv")
 ```

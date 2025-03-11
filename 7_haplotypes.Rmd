@@ -1,5 +1,5 @@
 ---
-title: "cil-poly-var"
+title: "cil-poly-var haplotypes"
 output: html_document
 date: "2025-01-13"
 ---
@@ -7,80 +7,6 @@ date: "2025-01-13"
 libraries
 ```{r}
 library(tidyverse)
-```
-
-load matrix of mini-loop
-```{r}
-matrix <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cil-poly-var-dloop-matrix.csv")
-```
-
-long format 
-```{r}
-matrix_long <- matrix %>%
-  pivot_longer(cols = c(2:202), names_to = "sample2", values_to = "identity") %>%
-  rename(sample1 = X) %>%
-  filter(!is.na(identity)) %>%
-   mutate(sample2 = sub("^X", "", sample2))
-```
-
-load sample metadata
-```{r}
-meta <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cil-poly-var-dloop-meta.csv") %>%
-  filter(Name != "Nucleotide alignment") %>%
-  filter(Name != "Nucleotide alignment consensus tree") %>%
-  select(!Description) 
-```
-
-join
-```{r}
-matrix_long <- matrix_long %>%
-  left_join(meta, by = c("sample1" = "Name")) %>%
-  rename(organism1 = Organism) %>%
-  left_join(meta, by = c("sample2" = "Name")) %>%
-  rename(organism2 = Organism) 
-```
-
-
-first look closer at ciliatus
-```{r}
-matrix_long %>%
-  filter(sample1 == "33267_consensus") %>%
-  filter(organism1 == organism2) %>%
-  group_by(identity) %>%
-  summarize(count = n()) %>%
-  arrange(desc(identity))
-
-matrix_long %>%
-  filter(sample1 == "33267_consensus") %>%
-  filter(organism1 != organism2) %>%
-  group_by(identity) %>%
-  summarize(count = n()) %>%
-  arrange(desc(identity))
-```
-
-
-how about polyspinus
-```{r}
-matrix_long %>%
-  filter(sample1 == "ABLG9548_consensus") %>%
-  filter(organism1 == organism2) %>%
-  group_by(identity) %>%
-  summarize(count = n()) %>%
-  arrange(desc(identity))
-
-matrix_long %>%
-  filter(sample1 == "ABLG9548_consensus") %>%
-  filter(organism1 != organism2) %>%
-  group_by(identity) %>%
-  summarize(count = n()) %>%
-  arrange(desc(identity))
-```
-
-
-### starting here 
-
-
-```{r}
 library(ape)
 library(pegas)
 ```
@@ -88,8 +14,6 @@ library(pegas)
 
 ```{r}
 data <- read.dna("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_minidloop_aligned.fasta", format = "fasta")
-#data <- read.dna("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_minidloop_aligned_filtered.fasta", format = "fasta")
-
 print(data)
 ```
 
@@ -108,7 +32,6 @@ head(hapInfo)
 #need to join the sample names 
 meta_aligned <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_meta.csv") %>%
   mutate(Name = ifelse(Name == '31082_consensus extraction', '31082_consensus_extraction', Name))
-#meta_aligned <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cpv_fasta/cpv_meta_filtered.csv")
 
 merged <- data.frame(cbind(hapInfo,meta_aligned[hapInfo$index,]))
 head(merged)
@@ -221,4 +144,72 @@ sum(haplotype_freqs_table$`Sebastes ciliatus`)
 sum(haplotype_freqs_table$`Sebastes variabilis`)
 ```
 
+
+#### not used in manuscript: 
+load matrix of mini-loop
+```{r}
+matrix <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cil-poly-var-dloop-matrix.csv")
+```
+
+long format 
+```{r}
+matrix_long <- matrix %>%
+  pivot_longer(cols = c(2:202), names_to = "sample2", values_to = "identity") %>%
+  rename(sample1 = X) %>%
+  filter(!is.na(identity)) %>%
+   mutate(sample2 = sub("^X", "", sample2))
+```
+
+load sample metadata
+```{r}
+meta <- read.csv("/home/kimberly.ledger/rockfish_mb/data/cil-poly-var-dloop-meta.csv") %>%
+  filter(Name != "Nucleotide alignment") %>%
+  filter(Name != "Nucleotide alignment consensus tree") %>%
+  select(!Description) 
+```
+
+join
+```{r}
+matrix_long <- matrix_long %>%
+  left_join(meta, by = c("sample1" = "Name")) %>%
+  rename(organism1 = Organism) %>%
+  left_join(meta, by = c("sample2" = "Name")) %>%
+  rename(organism2 = Organism) 
+```
+
+
+first look closer at ciliatus
+```{r}
+matrix_long %>%
+  filter(sample1 == "33267_consensus") %>%
+  filter(organism1 == organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+
+matrix_long %>%
+  filter(sample1 == "33267_consensus") %>%
+  filter(organism1 != organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+```
+
+
+how about polyspinus
+```{r}
+matrix_long %>%
+  filter(sample1 == "ABLG9548_consensus") %>%
+  filter(organism1 == organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+
+matrix_long %>%
+  filter(sample1 == "ABLG9548_consensus") %>%
+  filter(organism1 != organism2) %>%
+  group_by(identity) %>%
+  summarize(count = n()) %>%
+  arrange(desc(identity))
+```
 

@@ -1,5 +1,5 @@
 ---
-title: "rockfish mb - testing abl and burke museum tissues"
+title: "rockfish mb - testing ablg and burke museum tissues"
 author: "Kimberly Ledger"
 date: "2024-08-14"
 output: html_document
@@ -46,8 +46,8 @@ reads_per_sample <- taxon_table %>%
 
 taxon_table_filtered <- taxon_table %>%
   filter(!sample_id %in% c("34137", "34138", "34139", "34140")) %>% ### remove yelloweye
-  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG_11613", "ABLG_11614", "ABLG11660")) %>% ## remove the extra deacons, etc that went into the reference db 
-  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) %>% ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect
+  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG11613", "ABLG11614", "ABLG11660")) %>% ## remove the extra deacons, etc that went into the reference db 
+  filter(!sample_id %in% c("ABLG_4421", "ABLG4624", "ABLG_4592", "ABLG_4588")) %>% ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect
   filter(!sample_id %in% c("43638", "43639", "43682", "43625", "43642", "43653")) %>% #remove Sebastolobus
   filter(!sample_id %in% c("ABLG_4670", "ABLG_8566", "ABLG_9486"))  ## a few tissue samples were sequenced twice
 
@@ -59,8 +59,8 @@ read in file that has the tissue ids for the rockfish samples (as of 1/15/25 i'v
 ```{r}
 ablg <- read.csv("~/rockfish_mb/data/ABLG_BURKE_rockfishDNA.csv") %>%
   filter(common_name != "yelloweye") %>%  ## need to pick new tissue samples to retest at some point
-  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG_11613", "ABLG_11614", "ABLG11660")) %>% ## remove the extra deacons, etc that went into the reference db 
-  filter(!sample_id %in% c("ABLG_4421", "ABLG_4373", "ABLG_4592", "ABLG_4588")) %>% ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect 
+  filter(!sample_id %in% c("ABLG_9891", "ABLG_9895", "ABLG_10622", "ABLG_10628", "ABLG_10631", "ABLG11613", "ABLG11614", "ABLG11660")) %>% ## remove the extra deacons, etc that went into the reference db 
+  filter(!sample_id %in% c("ABLG_4421", "ABLG4624", "ABLG_4592", "ABLG_4588")) %>% ## i ended up testing more ciliatus than necessary bc initial tissue id was incorrect 
   filter(!sample_id %in% c("43638", "43639", "43682", "43625", "43642", "43653")) %>% #remove Sebastolobus
   filter(!sample_id %in% c("ABLG_4670", "ABLG_8566", "ABLG_9486"))  ## a few tissue samples were sequenced twice
 ```
@@ -137,7 +137,7 @@ p2
 ```
 
 ```{r}
-ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_binary.png", plot = p1, dpi = 300, width = 12, height = 6)
+#ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_binary.png", plot = p1, dpi = 300, width = 12, height = 6)
 ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_colors.png", plot = p2, dpi = 300, width = 12, height = 6)
 ```
 
@@ -149,7 +149,7 @@ rockfish <- rockfish %>%
   mutate(taxon_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", taxon))
 ```
 
-explore 70% threshold
+use 50% ID threshold
 ```{r}
 samples_w_greaterthan50 <- rockfish %>%
   ungroup() %>%
@@ -203,32 +203,6 @@ species_order_tissue <- as.data.frame(tree$tip.label) %>%
   mutate(Organism = ifelse(accession_id == "'NC_060711 PCR Product'", "Sebastes variabilis", Organism)) %>%
   mutate(Organism_abbr = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", Organism))
 ```
-
-plot the tree
-```{r}
-tree$tip.label <- species_order_tissue$Organism
-
-plot.phylo(
-  tree,
-  type = "phylogram",      # Tree layout
-  align.tip.label = TRUE,  # Align tip labels
-  cex = 0.8,               # Font size for tip labels
-  no.margin = TRUE         # Remove extra margins
-)
-```
-
-```{r}
-#png("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_tissue_tree_updated.png", width = 600, height = 800, res = 300)
-#plot.phylo(
-#  tree,
-#  type = "phylogram",      # Tree layout
-#  align.tip.label = TRUE,  # Align tip labels
-#  cex = 0.3,               # Font size for tip labels
-#  no.margin = TRUE         # Remove extra margins
-#)
-#dev.off
-```
-
 order heatmap by tree
 ```{r}
 # species_order_asv <- c("Sebastes glaucus",        "Sebastes borealis",       "Sebastes brevispinis",    "Sebastes proriger",       "Sebastes miniatus",      
@@ -310,4 +284,9 @@ assignment_matrix_ordered %>%
   filter(n > 0)
 ```
 
+```{r}
+rockfish %>%
+  filter(correct_id == "no") %>%
+  filter(prop_reads > 0.5)
+```
 

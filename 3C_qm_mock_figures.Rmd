@@ -105,27 +105,7 @@ species_colors_table <- data.frame(name = rev(clr_alpha_sum$SP[order(clr_alpha_s
   "#f5a056", "#97a431", "#a48cf4", "#3aa5df", "#8c564b", "#f66bad",  "#c7c7c7", "#33b07a" #"#37abb4", 
 ))
 
-# species_colors <- c(
-#   "#77ab31", "#f77189", "#6e9bf4", "#f45cf2", "#ae9d31", "#cc7af4", 
-#   "#31b33e", "#4c36f5", "#36ada4", "#97a431", "#f7754f",#"#38a9c5", 
-#   "#35ae93", "#c39532", "#3aa5df", "#a48cf4", "#f66bad",  "#dc8932", "#33b07a" #"#37abb4", 
-# )
-
-#clr_alpha_sum$taxon <- factor(clr_alpha_sum$taxon, levels = rev(unique(clr_alpha_sum$taxon)))
 clr_alpha_sum$SP <- factor(clr_alpha_sum$SP, levels = rev(clr_alpha_sum$SP[order(clr_alpha_sum$Mean)]))
-
-# p_clr <-  ggplot(clr_alpha_sum) +
-#     geom_errorbarh(aes(xmin=q.25,xmax=q.75,y=SP),size=2,height=0) +
-#     geom_errorbarh(aes(xmin=q.025,xmax=q.975,y=SP),size=0.8,height=0) +
-#     geom_point(aes(x=Mean,y=SP,fill=SP),size=3,shape=21) +
-#     geom_vline(xintercept=0,linetype="dashed") +
-#     scale_fill_manual(values=species_colors_table$color) +
-#     scale_x_continuous("Amplification Efficiency (CLR)") +
-#     scale_y_discrete(NULL) + #, limits = rev(levels(clr_alpha_sum$taxon))) +
-#     theme_bw() +
-#     theme(legend.position = "none",
-#           legend.text = element_text(size = 8),
-#           axis.text.y = element_text(size=10))
 
 p_clr <-  ggplot(clr_alpha_sum) +
     geom_errorbarh(aes(xmin=q.25,xmax=q.75,y=SP),size=2,height=0) +
@@ -149,12 +129,11 @@ p_clr
 
 
 ```{r}
-ggsave(p_clr, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/allmocks_clr_ordered.png", width = 8, height = 5, units = "in")
+#ggsave(p_clr, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/allmocks_clr_ordered.png", width = 8, height = 5, units = "in")
 ```
 
 
 make a plot for publication using  - all_even community expects & observed proportions 
-
 ```{r}
 mockcom_data <- read.csv("/home/kimberly.ledger/rockfish_mb/outputs/rf_mock_20250117.csv") %>%
   group_by(community, tech_rep) %>%
@@ -178,7 +157,7 @@ df2 <- mockcom_data %>%
   filter(community == "all_even") %>%
   filter(tech_rep == "A") %>%
   select(taxon, Perc_Community) %>%
-  mutate(status = "initial") %>%
+  mutate(status = "expected") %>%
   rename(proportion = Perc_Community)
 
 df_mock <- df1 %>%
@@ -215,7 +194,7 @@ alle
 ```
 
 ```{r}
-ggsave(alle, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/alleven_initial_v_observed_ordered.png", width = 8, height = 5, units = "in")
+#ggsave(alle, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/alleven_initial_v_observed_ordered.png", width = 8, height = 5, units = "in")
 ```
 
 ```{r}
@@ -235,7 +214,7 @@ df2 <- mockcom_data %>%
   filter(community == "offshore_even") %>%
   filter(tech_rep == "A") %>%
   select(taxon, Perc_Community) %>%
-  mutate(status = "initial") %>%
+  mutate(status = "expected") %>%
   rename(proportion = Perc_Community) %>%
   filter(proportion > 0)
 
@@ -286,7 +265,7 @@ df2 <- mockcom_data %>%
   filter(community == "nearshore_even") %>%
   filter(tech_rep == "A") %>%
   select(taxon, Perc_Community) %>%
-  mutate(status = "initial") %>%
+  mutate(status = "expected") %>%
   rename(proportion = Perc_Community) %>%
   filter(proportion > 0)
 
@@ -328,8 +307,6 @@ mock_plot <- (os_even | ns_even) /  p_clr + plot_annotation(tag_levels = "A") + 
 mock_plot
 ```
 
-
-
 ```{r}
-ggsave(mock_plot, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/mock_fig_off_near_tall.png", width = 7, height = 7, units = "in")
+#ggsave(mock_plot, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/mock_fig_off_near_tall.png", width = 7, height = 7, units = "in")
 ```

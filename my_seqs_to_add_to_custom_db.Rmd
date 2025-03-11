@@ -4,7 +4,7 @@ output: html_document
 date: "2024-12-05"
 ---
 
-this code takes the asvs from the rockfish mb tissues and creates ref sequences for the few species we are missing/low of reference sequences 
+this code takes the asvs from the rockfish mb tissues and creates ref sequences for the few species we are missing/low of reference sequences ...  
 
 ```{r}
 library(tidyverse)

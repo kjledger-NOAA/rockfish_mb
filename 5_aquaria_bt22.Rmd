@@ -4,8 +4,6 @@ output: html_document
 date: "2024-12-20"
 ---
 
-using 'decontaminated'/filtered samples/asv and tax assignment (v.534) 
-
 libraries
 ```{r}
 library(tidyverse)
@@ -21,7 +19,7 @@ metadata <- read.csv("/home/kimberly.ledger/rockfish_mb/data/metadata_tissue_moc
 
 load decontaminated reads 
 ```{r}
-asv_table <- read.csv("/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv") %>%
+asv_table <- read.csv("/home/kimberly.ledger/rockfish_mb/data/decontaminated_asv_table.csv") %>%   ##this asv does not include reps w/ less than 200 reads
   select(!X) %>%
   filter(!sample_type == "tissue") %>%
   filter(!sample_type == "mock") %>%
@@ -82,75 +80,6 @@ tank_table <- taxon_table %>%
 ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank1.png", plot = tank_fig1, dpi = 300, width =6, height = 4)
 ```
 
-try other ways of plotting 
-```{r}
-# tank_fig2 <- taxon_table %>%
-#   filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
-#   group_by(Sample_ID) %>%
-#   mutate(reads_per_sample = sum(tot_reads)) %>%
-#   mutate(prop_reads = tot_reads/reads_per_sample) %>%
-#   ggplot(aes(x=taxon, y=prop_reads, fill=taxon)) +
-#   geom_bar(stat = "identity") + 
-#   theme_bw() +
-#   facet_grid(~Sample_ID) + 
-#   labs(
-#     y = "relative read abundance (%)",
-#     x = "taxon") + 
-#   theme(#axis.text.x = element_blank(),
-#     axis.text.x = element_text(angle = 45, hjust = 0.95),
-#     legend.text = element_text(size = 8),
-#     legend.key.size = unit(0.3, "cm"),
-#     legend.position = "bottom",
-#     legend.title = element_blank() 
-#   )
-# 
-# tank_fig2
-```
-
-```{r}
-#ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank2_new_cpv_assignments.png", plot = tank_fig2, dpi = 300, width = 7, height = 4)
-```
-
-```{r}
-# tank_fig3 <- taxon_table %>%
-#   filter(Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
-#   pivot_wider(names_from = "taxon", values_from = "tot_reads", values_fill = 0) %>%
-#   pivot_longer(cols = c(3:13), names_to = "taxon", values_to = "tot_reads") %>%
-#   group_by(Sample_ID) %>%
-#   mutate(reads_per_sample = sum(tot_reads)) %>%
-#   mutate(prop_reads = tot_reads/reads_per_sample) %>%
-#   ungroup() %>%
-#   group_by(taxon) %>%
-#   summarise(mean_prop = mean(prop_reads),
-#             q.25 = quantile(prop_reads, 0.25),
-#             q.75 = quantile(prop_reads, 0.75)) %>%
-#   ggplot(aes(x=taxon, y=mean_prop, color=taxon)) +
-#   geom_point() + 
-#   geom_errorbar(aes(ymin = q.25, ymax = q.75), width = 0.2) + 
-#   theme_bw() +
-#   labs(
-#     y = "relative read abundance (%)",
-#     x = "taxon") + 
-#   theme(#axis.text.x = element_blank(),
-#     axis.text.x = element_text(angle = 45, hjust = 0.95),
-#     legend.text = element_text(size = 8),
-#     legend.key.size = unit(0.3, "cm"),
-#     legend.position = "bottom",
-#     legend.title = element_blank() 
-#   )
-# 
-# tank_fig3
-```
-
-```{r}
-#ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank3_new_cpv_assignments.png", plot = tank_fig3, dpi = 300, width = 6, height = 4)
-```
-
-
-wes said that rougheye (aleutianus), pop, (alutus), china (nebulosus), copper (caurinus), quillback (maliger), black (melanops), widow (entomelas), light dusky (variabilis), and yellowtail (flavidus) were present at time of sampling 
-
-eDNA pick up a lot of melanosticutus (blackspotted)and some proringer (redstripe). other people at the lab believe these species are also in the tank. 
-
 
 make a heatmap table for pres/abs of replicates 
 ```{r}
@@ -184,7 +113,6 @@ ggsave("/home/kimberly.ledger/rockfish_mb/figures/tank4_table.png", plot = tank_
 
 
 and a quick look a field samples 
-
 ```{r}
 field_table <- taxon_table %>%
   filter(sample_type == "sample") %>%
@@ -310,7 +238,6 @@ controls_table <- taxon_table %>%
   filter(prop_reads > 0.25)
 ```
 
-
 check how many eDNA samples were collected at each haul location 
 ```{r}
 bt_meta <- metadata %>%
@@ -319,7 +246,6 @@ bt_meta <- metadata %>%
   group_by(station) %>%
   summarize(count = n())
 
-
 metadata %>%
   filter(sample_type == "sample") %>%
   filter(!Sample_ID %in% c("e01737", "e01738", "e01741")) %>%
@@ -327,8 +253,7 @@ metadata %>%
   unique()
 ```
 
-
-
+#### the following code is not used in the rockfish publication ####
 
 how does this compare to trawl catch? 
 
