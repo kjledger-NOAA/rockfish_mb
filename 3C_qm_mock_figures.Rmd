@@ -310,3 +310,67 @@ mock_plot
 ```{r}
 #ggsave(mock_plot, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/mock_fig_off_near_tall.png", width = 7, height = 7, units = "in")
 ```
+
+
+```{r}
+df1 <- mockcom_data %>%
+  filter(community == "offshore_skew") %>%
+  filter(nReads > 30) %>%
+  group_by(tech_rep) %>%
+  mutate(total_reads = sum(nReads)) %>%
+  mutate(prop_reads = nReads/total_reads) %>%
+  ungroup() %>%
+  group_by(taxon) %>%
+  summarise(proportion = mean(prop_reads)) %>%
+  mutate(status = "observed")
+
+df2 <- mockcom_data %>%
+  ungroup() %>%
+  filter(community == "offshore_skew") %>%
+  filter(tech_rep == "A") %>%
+  select(taxon, Perc_Community) %>%
+  mutate(status = "expected") %>%
+  rename(proportion = Perc_Community) %>%
+  filter(proportion > 0)
+
+df_mock <- df1 %>%
+  bind_rows(df2) %>%
+  mutate(taxon = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", taxon))
+
+species_colors_ns <- species_colors_table %>%
+  filter(name %in% df_mock$taxon)
+
+df_mock$taxon <- as.factor(df_mock$taxon) 
+
+df_mock$taxon <- factor(df_mock$taxon, levels = clr_alpha_sum$SP)
+
+os_skew <- df_mock %>%
+  ggplot(aes(x=status, y=proportion, fill=taxon)) +
+  geom_bar(stat = "identity") + 
+  theme_bw() +
+  scale_fill_manual(values = rev(species_colors_ns$color)) +
+  labs(
+    y = "proportion",
+    x = "") + 
+  theme(#axis.text.x = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 0.95),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.position = "right",
+    legend.title = element_blank()
+  )
+
+os_skew
+```
+
+
+```{r}
+library(patchwork)
+
+sup_plot <- alle + os_skew + plot_annotation(tag_levels = "A")
+sup_plot
+```
+
+```{r}
+ggsave(sup_plot, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/sup_fig_initial_v_observed_ordered.png", width = 8, height = 4, units = "in")
+```

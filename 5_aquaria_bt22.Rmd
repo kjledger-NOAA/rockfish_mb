@@ -207,6 +207,11 @@ ggsave("/home/kimberly.ledger/rockfish_mb/figures/bt2_w_zeros_dummyfacets.png", 
 ```
 
 ```{r}
+write.csv(field_table_w_meta, "/home/kimberly.ledger/rockfish_mb/outputs/field_quant/raw_field_data.csv")
+```
+
+
+```{r}
 field_table_w_meta %>%
   filter(is.na(taxon))
 
@@ -312,6 +317,13 @@ seb_in_bt %>%
   arrange(desc(tot_wt_CPUE))
 
 seb_in_bt %>% select(Haul.number) %>% unique()
+
+seb_in_bt %>% 
+  filter(Haul.number %in% c("107", "114", "129", "125", "138", "152", "90", "92", "95", "99")) %>%
+  group_by(Taxon.scientific.name) %>%
+  summarize(tot_wt_CPUE = sum(Weight.CPUE..kg.km2.),
+            tot_n_CPUE = sum(Number.CPUE..no.km2.)) %>%
+  arrange(desc(tot_wt_CPUE))
 ```
 
 try making a map of these trawl locations

@@ -244,7 +244,7 @@ custom_labels <-c (2,0,2,4,6,8)
 
 # Create the heatmap
 tissue_heatmap <- ggplot(assignment_matrix_ordered, aes(x = species_name_abbr, y = taxon_abbr, fill = fill_color)) +
-  geom_tile(color = "white") +
+  geom_tile(color = "lightgrey") +
   # Use scale_fill_gradientn() with a custom color palette
   scale_fill_gradientn(
     colors = c("lightcoral", "white", "#1E4160"), 
@@ -259,15 +259,110 @@ tissue_heatmap <- ggplot(assignment_matrix_ordered, aes(x = species_name_abbr, y
     y = "Taxonomic Assignment",
     #title = "Assignment Plot"
   ) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, face = "italic"),
+        axis.text.y = element_text(face = "italic"))
 
 tissue_heatmap
+
+assignment_matrix_ordered <- assignment_matrix_ordered %>%
+  mutate(match2 = ifelse(n == 0, "1", match),
+         match2 = ifelse(match2 == "no", "incorrect", match2),
+         match2 = ifelse(match2 == "yes", "correct", match2))
+
+# Filter the dataset to only draw borders where n > 0
+assignment_borders <- subset(assignment_matrix_ordered, n > 0)
+
+tissue_heatmap_v2 <- ggplot() +
+    # Layer 0: full light grey background grid
+  geom_tile(data = assignment_matrix_ordered,
+            aes(x = species_name_abbr, y = taxon_abbr),
+            fill = "grey90", color = NA) +
+  
+  # Layer 1: fill tiles (no border)
+  geom_tile(data = assignment_matrix_ordered,
+            aes(x = species_name_abbr, y = taxon_abbr, fill = n),
+            color = NA) +
+
+  # Layer 2: border tiles only where n > 0
+  geom_tile(data = assignment_borders,
+            aes(x = species_name_abbr, y = taxon_abbr, color = match2),
+            fill = NA,
+            linewidth = 0.8) +
+
+  # Fill scale
+  scale_fill_gradient(
+  low = "white", high = "#1E4160",
+  name = "Sample Count",
+  breaks = seq(0, 10, by = 2)) +  # adjust max value as needed
+
+  # Border color scale
+  scale_color_manual(values = c(
+    "1" = "lightgrey",
+    "incorrect" = "coral",
+    "correct" = "#1E4160"
+  ), name = "Assignment") +
+
+  theme_bw() +
+  labs(x = "Tissue ID", y = "Taxonomic Assignment") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "italic"),
+    axis.text.y = element_text(face = "italic")
+  )
+
+tissue_heatmap_v2
 ```
 
 ```{r}
-ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_heatmap_abbr.png", plot = tissue_heatmap, dpi = 300, width = 10, height = 8)
+ggsave("/home/kimberly.ledger/rockfish_mb/figures/rockfish_id_heatmap_abbr_mod.png", plot = tissue_heatmap_v2, dpi = 300, width = 10, height = 8)
 ```
+
+
+```{r}
+df_correct <- assignment_matrix_ordered %>%
+  filter(match == "yes") %>%
+  mutate(
+    species_name_abbr = factor(species_name_abbr, levels = species_order_tissue$Organism_abbr),
+    taxon_abbr = factor(taxon_abbr, levels = species_order_asv)
+  ) 
+df_incorrect <- assignment_matrix_ordered %>%
+  filter(match == "no") %>% 
+  mutate(
+    species_name_abbr = factor(species_name_abbr, levels = species_order_tissue$Organism_abbr),
+    taxon_abbr = factor(taxon_abbr, levels = species_order_asv)
+  ) 
+
+
+mutate(
+    species_name_abbr = factor(species_name_abbr, levels = species_order_tissue$Organism_abbr),
+    taxon_abbr = factor(taxon_abbr, levels = species_order_asv)
+  ) 
+df_incorrect <- subset(assignment_matrix_ordered, match == "no") 
+
+library(ggnewscale)
+
+tissue_heatmap_v3 <-  ggplot() +
+  # Correct assignments (blue)
+  geom_tile(data = df_correct, aes(x = species_name_abbr, y = taxon_abbr, fill = n), color = "grey80") +
+  scale_fill_gradient(name = "Number of Correct Assignments", low = "white", high = "#1E4160",
+                      breaks = seq(0, 10, by = 2)) +  # Set the legend breaks to show only integers)
+  # Start a new fill scale
+  ggnewscale::new_scale_fill() +
+
+  # Incorrect assignments (red)
+  geom_tile(data = df_incorrect, aes(x = species_name_abbr, y = taxon_abbr, fill = n), color = "grey80") +
+  scale_fill_gradient(name = "Number of Incorrect Assignments", low = "white", high = "lightcoral",
+                      breaks = seq(0, 2, by = 1)) +  # Set the legend breaks to show only integers) 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, face = "italic"),
+        axis.text.y = element_text(face = "italic")) + 
+    labs(
+    x = "Tissue ID",
+    y = "Taxonomic Assignment",
+  ) 
+tissue_heatmap_v3
+```
+
+
 
 ```{r}
 assignment_matrix_ordered %>%
