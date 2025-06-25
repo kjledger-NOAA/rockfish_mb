@@ -623,7 +623,7 @@ save(Output,file=paste0("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mo
 ```
 
 
-### make figure 
+### make figure 5 
 
 ```{r}
 load("/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/mock_20250618_field.Rdata")

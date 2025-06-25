@@ -1,0 +1,19 @@
+Species,Accession ID,Thr-RF,D-RF,HV total,SebDLoop_F,SebDLoop_R,SebDLoop total
+Sebastes aleutianus,OR641492,0,3,3,0,0,0
+Sebastes alutus,OR641501,1,4,5,0,0,0
+Sebastes babcocki,NC_085187,0,4,4,0,0,0
+Sebastes borealis,UW101558,0,3,3,0,0,0
+Sebastes brevispinis,NC_082776,0,4,4,0,0,0
+Sebastes ciliatus,NC_060709,0,3,3,0,0,0
+Sebastes helvomaculatus,NC_082775,0,2,2,0,0,0
+Sebastes maliger,NC_056782,0,3,3,0,0,0
+Sebastes melanops,NC_060710,0,3,3,0,0,0
+Sebastes melanostictus,UW201553,0,3,3,0,0,0
+Sebastes nebulosus,NC_082756,0,3,3,1,0,1
+Sebastes nigrocinctus,NC_039778,0,4,4,0,0,0
+Sebastes pinniger,NC_082766,0,3,3,0,0,0
+Sebastes polyspinis,NC_083047,0,3,3,0,0,0
+Sebastes proriger,NC_082771,0,3,3,0,0,0
+Sebastes variabilis,NC_060711,0,3,3,0,0,0
+Sebastes variegatus,NC_082788,0,3,3,0,0,0
+Sebastes zacentrus,NC_082763,0,3,3,0,0,0

@@ -191,6 +191,11 @@ alle <- df_mock %>%
   )
 
 alle
+
+temp <- df_mock %>%
+  pivot_wider(names_from = "status", values_from = "proportion") %>%
+  mutate(diff = observed - expected) %>%
+  arrange(abs(diff))
 ```
 
 ```{r}
@@ -361,6 +366,11 @@ os_skew <- df_mock %>%
   )
 
 os_skew
+
+temp <- df_mock %>%
+  pivot_wider(names_from = "status", values_from = "proportion") %>%
+  mutate(diff = observed - expected) %>%
+  arrange(abs(diff))
 ```
 
 
@@ -374,3 +384,61 @@ sup_plot
 ```{r}
 ggsave(sup_plot, filename = "/home/kimberly.ledger/rockfish_mb/outputs/mock_quant/figures/sup_fig_initial_v_observed_ordered.png", width = 8, height = 4, units = "in")
 ```
+
+
+```{r}
+alpha <- p_space_mock1 %>% as.data.frame()
+
+mock.taxon   <- data.frame(Species=mock1.post %>% distinct(Species) %>% pull(Species))
+
+colnames(alpha) <- mock.taxon$Species                       
+
+alpha_sum <- alpha %>% 
+                    pivot_longer( .,
+                          cols = colnames(alpha),
+                          names_to="Species",values_to="val") %>%
+                    group_by(Species) %>%
+                    summarize(Mean = mean(val),
+                        SD=sd(val),
+                        q.025 = quantile(val,probs=0.025),
+                        q.05 = quantile(val,probs=0.05),
+                        q.25 = quantile(val,probs=0.25),
+                        q.75 = quantile(val,probs=0.75),
+                        q.95 = quantile(val,probs=0.95),
+                        q.975 = quantile(val,probs=0.975))    
+
+alpha_sum <- alpha_sum %>% arrange(Mean)
+
+# get rid of reference species denotation
+alpha_sum <- alpha_sum %>%
+                      mutate(SP= ifelse(grepl("zRefSpecies_",Species),
+                                       substr(Species,13,nchar(Species)),
+                                       as.character(Species))) %>%
+  mutate(SP = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", SP))
+
+alpha_sum$SP <- as.factor(alpha_sum$SP)
+```
+
+read in table with primer-template mismatches
+```{r}
+mm <- read.csv("/home/kimberly.ledger/rockfish_mb/data/primer_mismatch_table - Sheet1.csv") %>%
+  mutate(SP = Species) %>%
+  mutate(SP = sub("^(\\w)\\w*\\s(\\w+)", "\\1. \\2", SP))
+```
+
+```{r}
+alpha_mm <- alpha_sum %>%
+  left_join(mm, by = "SP")
+```
+
+plot
+```{r}
+ggplot(alpha_mm, aes(x = HV.total, y = Mean)) +
+  geom_point() +
+  labs(y = "Mean Amplification Efficiency",
+       x = "Total Number of Mismatches") +
+  theme_minimal()
+```
+
+
+
