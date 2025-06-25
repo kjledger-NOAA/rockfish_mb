@@ -27,10 +27,11 @@ note: to make custom rockfish db,
 *1_rockfish_taxonomic_assignment.Rmd:* This code takes the blastn output and determines the taxonomic assignment of each ASV   
 *2_decontamination.Rmd:* This code removes ASVs without a rockfish taxonomic assignment (all samples) and discards low read depth replicates based on ASV accumulation curve (for eDNA samples only)   
 *3A_format_mocks.Rmd:* This code formats expected mock community species compositions with the observed species proportions following Sebastes D-loop metabarcoding for quantitative metabarcoding model input   
-*3B_qm_mock.Rm:* This code runs the quantitative metabarcoding model from Shelton et al. 2023 to generate estimates of amplification efficiency   
-*3C_qm_mock_figures:* This code plots expected vs observed read proportions and amplification efficiency estimates from the mock communities (Figure 3)   
+*3B_qm_mock.Rmd:* This code runs the quantitative metabarcoding model from Shelton et al. 2023 to generate estimates of amplification efficiency   
+*3C_qm_mock_figures.Rmd:* This code plots expected vs observed read proportions and amplification efficiency estimates from the mock communities (Figure 3)
+*3D_qm_field.Rmd*: This code runs the quantitative metabarcoding model to correct read proportions of the bottom trawl survey samples (includes Figure 5). 
 *4_tissue_test.Rmd:* This code evaluates the taxonomic assignment of known rockfish tissue samples using the Sebastes D-loop metabarcoding primers and plots Figure 2   
-*5_aquaria_bt22.Rmd:* This code evaluates the eDNA samples from the ABL aquarium tank and bottom trawl survey (includes Figures 4 and 5)  
+*5_aquaria_bt22.Rmd:* This code evaluates the eDNA samples from the ABL aquarium tank and bottom trawl survey (includes Figures 4)  
 *6_tree_and_extra_stats.Rmd:* This code plots the phylogenetic tree (Figure 1A) and calculates some data summaries  
 *7_haplotypes.Rmd:* This code computes and plots haplotypes for dusky, dark, and northern rockfishes (Figure 1B)  
 
